@@ -11,9 +11,21 @@ module ArithmeticLogicUnit (
            output reg [31:0] out
        );
 
+initial begin
+`ifdef DEBUG
+    $dumpvars(0, A);
+    $dumpvars(0, B);
+`endif
+end
 
 always @(*) begin
     case (ctrl)
+`ifdef DEBUG
+
+        `aluDisabled:
+            out <= 'bx;
+`endif
+
         `aluAdd:
             out <= A + B;
         `aluSub:

@@ -1,3 +1,4 @@
+`include "constants.v"
 module DataMemory(
            input clk,
            input reset,
@@ -21,7 +22,12 @@ always @(posedge clk) begin
         end
     end
     else if (writeEnable) begin
+`ifdef DEBUG
         $display("@%h: *%h <= %h", debugPC, address, writeData);
+`else
+        $display("%d@%h: *%h <= %h", $time, debugPC, address, writeData);
+`endif
+
         memory[realAddress] <= writeData;
     end
 end
