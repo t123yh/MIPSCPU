@@ -43,11 +43,6 @@ wire forwardValidW;
 wire [4:0] forwardAddressW;
 wire [31:0] forwardValueW;
 
-// From WB
-wire forwardValid3 = 1;
-wire [4:0] forwardSource3;
-wire [31:0] forwardValue3;
-
 // ======== Fetch Stage ========
 reg F_jump;
 reg [31:0] F_jumpAddr;
@@ -106,7 +101,7 @@ GeneralRegisterFile D_grf(
 ForwardController D_regRead1_forward (
                       .request(D_ctrl.regRead1),
                       .original(D_grf.readOutput1),
-                      .enabled(D_ctrl.needRegisterInJumpStage),
+                      .enabled(D_ctrl.regRead1Required),
                       .debugPC(D_pc),
                       .debugStage("D"),
 
@@ -124,7 +119,7 @@ ForwardController D_regRead1_forward (
 ForwardController D_regRead2_forward (
                       .request(D_ctrl.regRead2),
                       .original(D_grf.readOutput2),
-                      .enabled(D_ctrl.needRegisterInJumpStage),
+                      .enabled(D_ctrl.regRead2Required),
                       .debugPC(D_pc),
                       .debugStage("D"),
 
@@ -224,7 +219,7 @@ Controller E_ctrl(
 ForwardController E_regRead1_forward (
                       .request(E_ctrl.regRead1),
                       .original(E_regRead1),
-                      .enabled(E_ctrl.aluCtrl != `aluDisabled),
+                      .enabled(E_ctrl.regRead1Required),
                       .debugPC(E_pc),
                       .debugStage("E"),
 
@@ -236,15 +231,13 @@ ForwardController E_regRead1_forward (
                       .src2Reg(forwardAddressW),
                       .src2Value(forwardValueW),
 
-                      .src3Valid(forwardValid3),
-                      .src3Reg(5'b0),
-                      .src3Value(forwardValue3)
+                      .src3Reg(5'b0)
                   );
 
 ForwardController E_regRead2_forward (
                       .request(E_ctrl.regRead2),
                       .original(E_regRead2),
-                      .enabled(E_ctrl.aluCtrl != `aluDisabled),
+                      .enabled(E_ctrl.regRead2Required),
                       .debugPC(E_pc),
                       .debugStage("E"),
 
@@ -256,9 +249,7 @@ ForwardController E_regRead2_forward (
                       .src2Reg(forwardAddressW),
                       .src2Value(forwardValueW),
 
-                      .src3Valid(forwardValid3),
-                      .src3Reg(5'b0),
-                      .src3Value(forwardValue3)
+                      .src3Reg(5'b0)
                   );
 
 assign E_data_waiting = E_regRead1_forward.stallExec || E_regRead2_forward.stallExec;
@@ -336,7 +327,7 @@ Controller M_ctrl(
 ForwardController M_regRead1_forward (
                       .request(M_ctrl.regRead1),
                       .original(M_regRead1),
-                      .enabled(1'b0),
+                      .enabled(M_ctrl.regRead1Required),
                       .debugPC(M_pc),
                       .debugStage("M"),
 
@@ -344,17 +335,14 @@ ForwardController M_regRead1_forward (
                       .src1Reg(forwardAddressW),
                       .src1Value(forwardValueW),
 
-                      .src2Valid(forwardValid3),
                       .src2Reg(5'b0),
-                      .src2Value(forwardValue3),
-
                       .src3Reg(5'b0)
                   );
 
 ForwardController M_regRead2_forward (
                       .request(M_ctrl.regRead2),
                       .original(M_regRead2),
-                      .enabled(M_ctrl.memStore),
+                      .enabled(M_ctrl.regRead2Required),
                       .debugPC(M_pc),
                       .debugStage("M"),
 
@@ -362,10 +350,7 @@ ForwardController M_regRead2_forward (
                       .src1Reg(forwardAddressW),
                       .src1Value(forwardValueW),
 
-                      .src2Valid(forwardValid3),
                       .src2Reg(5'b0),
-                      .src2Value(forwardValue3),
-
                       .src3Reg(5'b0)
                   );
 
