@@ -3,12 +3,15 @@
 module Controller (
            input [31:0] instruction,
            input [31:0] debugPC,
-           input [3:0] currentStage,
+           input [2:0] currentStage,
            input reset,
            input bubble,
 
            output reg [4:0] regRead1,
            output reg [4:0] regRead2,
+           output reg regRead1Required,
+           output reg regRead2Required,
+
            output reg memLoad,
            output reg memStore,
            output reg branch,
@@ -20,8 +23,7 @@ module Controller (
            output reg absJump,
            output reg absJumpLoc, // 1 = immediate, 0 = register
            output reg [3:0] grfWriteSource,
-           output reg bye,
-           output reg needRegisterInJumpStage
+           output reg bye
        );
 
 wire [5:0] opcode = instruction[31:26];
@@ -56,11 +58,32 @@ localparam syscall = 6'b001100;
 localparam debug = 1;
 
 always @(*) begin
+    regRead1Required = 0;
+    regRead2Required = 0;
+    if (currentStage == `stageD) begin
+        if (absJump || branch) begin
+            regRead1Required = 1;
+            regRead2Required = 1;
+        end
+    end
+    else if (currentStage == `stageE) begin
+        if (aluCtrl != `aluDisabled) begin
+            regRead1Required = 1;
+            regRead2Required = 1;
+        end
+    end
+    else if (currentStage == `stageM) begin
+        if (memStore) begin
+            regRead2Required = 1;
+        end
+    end
+end
+
+always @(*) begin
     memLoad = 0;
     memStore = 0;
     grfWriteSource = `grfWriteDisable;
     branch = 0;
-    needRegisterInJumpStage = 0;
     destinationRegister = 0;
     aluSrc = 0;
     aluCtrl = `aluDisabled;
@@ -107,7 +130,6 @@ always @(*) begin
                     regRead1 = rsi;
                     absJump = 1;
                     absJumpLoc = `absJumpRegister;
-                    needRegisterInJumpStage = 1;
                 end
                 syscall: begin
                     bye = 1;
@@ -158,7 +180,6 @@ always @(*) begin
             branch = 1;
             branchEQ = 1;
             immediate = signExtendedImmediate;
-            needRegisterInJumpStage = 1;
         end
 
         lui: begin
