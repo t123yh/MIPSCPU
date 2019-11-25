@@ -3,10 +3,12 @@
 module Controller (
            input [31:0] instruction,
            input [31:0] debugPC,
+           input [3:0] currentStage,
            input reset,
            input bubble,
-           output reg [4:0] rs,
-           output reg [4:0] rt,
+
+           output reg [4:0] regRead1,
+           output reg [4:0] regRead2,
            output reg memLoad,
            output reg memStore,
            output reg branch,
@@ -21,20 +23,6 @@ module Controller (
            output reg bye,
            output reg needRegisterInJumpStage
        );
-
-initial begin
-`ifdef DEBUG
-    $dumpvars(0, instruction);
-    $dumpvars(0, debugPC);
-    $dumpvars(0, reset);
-    $dumpvars(0, bubble);
-    $dumpvars(0, aluCtrl);
-    $dumpvars(0, destinationRegister);
-    $dumpvars(0, rd);
-    $dumpvars(0, opcode);
-    $dumpvars(0, funct);
-`endif
-end
 
 wire [5:0] opcode = instruction[31:26];
 wire [5:0] funct = instruction[5:0];
@@ -77,9 +65,9 @@ always @(*) begin
     aluSrc = 0;
     aluCtrl = `aluDisabled;
     absJump = 0;
-    rs = 0;
+    regRead1 = 0;
     bye = 0;
-    rt = 0;
+    regRead2 = 0;
 `ifdef DEBUG
 
     immediate = 'bx;
@@ -94,21 +82,21 @@ always @(*) begin
         R: begin
             case(funct)
                 add: begin
-                    rs = rsi;
-                    rt = rti;
+                    regRead1 = rsi;
+                    regRead2 = rti;
                     grfWriteSource = `grfWriteALU;
                     destinationRegister = rd;
                     aluCtrl = `aluAdd;
                 end
                 sub: begin
-                    rs = rsi;
-                    rt = rti;
+                    regRead1 = rsi;
+                    regRead2 = rti;
                     grfWriteSource = `grfWriteALU;
                     destinationRegister = rd;
                     aluCtrl = `aluSub;
                 end
                 sll: begin
-                    rs = rsi;
+                    regRead1 = rsi;
                     grfWriteSource = `grfWriteALU;
                     destinationRegister = rti;
                     aluSrc = 1;
@@ -116,7 +104,7 @@ always @(*) begin
                     aluCtrl = `aluShiftLeft;
                 end
                 jr: begin
-                    rs = rsi;
+                    regRead1 = rsi;
                     absJump = 1;
                     absJumpLoc = `absJumpRegister;
                     needRegisterInJumpStage = 1;
@@ -128,7 +116,7 @@ always @(*) begin
         end
 
         addiu: begin
-            rs = rsi;
+            regRead1 = rsi;
             grfWriteSource = `grfWriteALU;
             aluCtrl = `aluAdd;
             destinationRegister = rti;
@@ -137,7 +125,7 @@ always @(*) begin
         end
 
         ori: begin
-            rs = rsi;
+            regRead1 = rsi;
             grfWriteSource = `grfWriteALU;
             aluCtrl = `aluOr;
             destinationRegister = rti;
@@ -146,7 +134,7 @@ always @(*) begin
         end
 
         lw: begin
-            rs = rsi;
+            regRead1 = rsi;
             memLoad = 1;
             grfWriteSource = `grfWriteMem;
             destinationRegister = rti;
@@ -156,8 +144,8 @@ always @(*) begin
         end
 
         sw: begin
-            rs = rsi;
-            rt = rti;
+            regRead1 = rsi;
+            regRead2 = rti;
             memStore = 1;
             aluSrc = 1;
             aluCtrl = `aluAdd;
@@ -165,8 +153,8 @@ always @(*) begin
         end
 
         beq: begin
-            rs = rsi;
-            rt = rti;
+            regRead1 = rsi;
+            regRead2 = rti;
             branch = 1;
             branchEQ = 1;
             immediate = signExtendedImmediate;
@@ -174,7 +162,7 @@ always @(*) begin
         end
 
         lui: begin
-            rs = rsi;
+            regRead1 = rsi;
             grfWriteSource = `grfWriteALU;
             destinationRegister = rti;
             aluSrc = 1;

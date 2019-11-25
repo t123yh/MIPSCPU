@@ -85,6 +85,7 @@ end
 Controller D_ctrl(
                .instruction(D_currentInstruction),
                .reset(reset),
+               .currentStage(`stageD),
                .bubble(D_last_bubble),
                .debugPC(D_pc)
            );
@@ -94,18 +95,16 @@ reg [31:0] grfWriteData;
 GeneralRegisterFile D_grf(
                         .clk(clk),
                         .reset(reset),
-
                         .writeData(grfWriteData),
                         .writeAddress(grfWriteAddress), // set to 0 if no write operation shall be performed
 
-                        .readAddress1(D_ctrl.rs),
-                        .readAddress2(D_ctrl.rt),
+                        .readAddress1(D_ctrl.regRead1),
+                        .readAddress2(D_ctrl.regRead2),
                         .debugPC(W_pc)
                     );
 
-
-ForwardController D_branch_reader1 (
-                      .request(D_ctrl.rs),
+ForwardController D_regRead1_forward (
+                      .request(D_ctrl.regRead1),
                       .original(D_grf.readOutput1),
                       .enabled(D_ctrl.needRegisterInJumpStage),
                       .debugPC(D_pc),
@@ -122,8 +121,8 @@ ForwardController D_branch_reader1 (
                       .src3Value(forwardValueW)
                   );
 
-ForwardController D_branch_reader2 (
-                      .request(D_ctrl.rt),
+ForwardController D_regRead2_forward (
+                      .request(D_ctrl.regRead2),
                       .original(D_grf.readOutput2),
                       .enabled(D_ctrl.needRegisterInJumpStage),
                       .debugPC(D_pc),
@@ -140,10 +139,10 @@ ForwardController D_branch_reader2 (
                       .src3Value(forwardValueW)
                   );
 
-assign D_data_waiting = D_branch_reader1.stallExec || D_branch_reader2.stallExec;
+assign D_data_waiting = D_regRead1_forward.stallExec || D_regRead2_forward.stallExec;
 
-wire [31:0] D_branch_in1 = D_branch_reader1.value;
-wire [31:0] D_branch_in2 = D_branch_reader2.value;
+wire [31:0] D_branch_in1 = D_regRead1_forward.value;
+wire [31:0] D_branch_in2 = D_regRead2_forward.value;
 
 wire D_equal = D_branch_in1 == D_branch_in2;
 always @(*) begin
@@ -151,7 +150,8 @@ always @(*) begin
         if (D_equal) begin
             F_jump = 1;
             F_jumpAddr = D_pc + 4 + (D_ctrl.immediate << 2);
-        end else begin
+        end
+        else begin
             F_jump = 0;
         end
     end
@@ -161,7 +161,7 @@ always @(*) begin
             F_jumpAddr = {D_pc[31:28], D_ctrl.immediate[25:0], 2'b00};
         end
         else begin
-            F_jumpAddr = D_branch_reader1.value;
+            F_jumpAddr = D_regRead1_forward.value;
         end
     end
     else begin
@@ -177,8 +177,8 @@ reg E_bubble;
 wire E_insert_bubble = E_bubble || E_data_waiting;
 reg [31:0] E_currentInstruction;
 reg [31:0] E_pc;
-reg [31:0] E_readOutput1;
-reg [31:0] E_readOutput2;
+reg [31:0] E_regRead1;
+reg [31:0] E_regRead2;
 
 reg E_regWriteDataValid;
 reg [31:0] E_regWriteData;
@@ -200,29 +200,30 @@ end
 
 always @(posedge clk) begin
     if (!E_stall) begin
-    if (reset) begin
-        E_bubble <= 1;
-    end
-    else begin
-        E_bubble <= D_insert_bubble;
-    end
+        if (reset) begin
+            E_bubble <= 1;
+        end
+        else begin
+            E_bubble <= D_insert_bubble;
+        end
         E_currentInstruction <= D_currentInstruction;
         E_pc <= D_pc;
-        E_readOutput1 <= D_grf.readOutput1;
-        E_readOutput2 <= D_grf.readOutput2;
+        E_regRead1 <= D_regRead1_forward.value;
+        E_regRead2 <= D_regRead2_forward.value;
     end
 end
 
 Controller E_ctrl(
                .instruction(E_currentInstruction),
                .reset(reset),
+               .currentStage(`stageE),
                .bubble(E_bubble),
                .debugPC(E_pc)
            );
 
-ForwardController E_oprand1_reader (
-                      .request(E_ctrl.rs),
-                      .original(E_readOutput1),
+ForwardController E_regRead1_forward (
+                      .request(E_ctrl.regRead1),
+                      .original(E_regRead1),
                       .enabled(E_ctrl.aluCtrl != `aluDisabled),
                       .debugPC(E_pc),
                       .debugStage("E"),
@@ -236,13 +237,13 @@ ForwardController E_oprand1_reader (
                       .src2Value(forwardValueW),
 
                       .src3Valid(forwardValid3),
-                      .src3Reg(forwardSource3),
+                      .src3Reg(5'b0),
                       .src3Value(forwardValue3)
                   );
 
-ForwardController E_oprand2_reader (
-                      .request(E_ctrl.rt),
-                      .original(E_readOutput2),
+ForwardController E_regRead2_forward (
+                      .request(E_ctrl.regRead2),
+                      .original(E_regRead2),
                       .enabled(E_ctrl.aluCtrl != `aluDisabled),
                       .debugPC(E_pc),
                       .debugStage("E"),
@@ -256,16 +257,16 @@ ForwardController E_oprand2_reader (
                       .src2Value(forwardValueW),
 
                       .src3Valid(forwardValid3),
-                      .src3Reg(forwardSource3),
+                      .src3Reg(5'b0),
                       .src3Value(forwardValue3)
                   );
 
-assign E_data_waiting = E_oprand1_reader.stallExec || E_oprand2_reader.stallExec;
+assign E_data_waiting = E_regRead1_forward.stallExec || E_regRead2_forward.stallExec;
 
 ArithmeticLogicUnit E_alu(
                         .ctrl(E_ctrl.aluCtrl),
-                        .A(E_oprand1_reader.value),
-                        .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_oprand2_reader.value)
+                        .A(E_regRead1_forward.value),
+                        .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_regRead2_forward.value)
                     );
 
 
@@ -277,7 +278,8 @@ wire M_insert_bubble = M_bubble || M_data_waiting;
 reg [31:0] M_currentInstruction;
 reg [31:0] M_pc;
 reg [31:0] M_aluOutput;
-reg [31:0] M_grfReadOutput2;
+reg [31:0] M_regRead1;
+reg [31:0] M_regRead2;
 
 reg M_lastWriteDataValid;
 reg [31:0] M_lastWriteData;
@@ -287,16 +289,17 @@ reg [31:0] M_regWriteData;
 
 always @(posedge clk) begin
     if (!M_stall) begin
-    if (reset) begin
-        M_bubble <= 1;
-    end
-    else begin
-        M_bubble <= E_insert_bubble;
-    end
+        if (reset) begin
+            M_bubble <= 1;
+        end
+        else begin
+            M_bubble <= E_insert_bubble;
+        end
         M_currentInstruction <= E_currentInstruction;
         M_pc <= E_pc;
         M_aluOutput <= E_alu.out;
-        M_grfReadOutput2 <= E_readOutput2;
+        M_regRead1 <= E_regRead1_forward.value;
+        M_regRead2 <= E_regRead2_forward.value;
         M_lastWriteDataValid <= E_regWriteDataValid;
         M_lastWriteData <= E_regWriteData;
     end
@@ -325,14 +328,32 @@ end
 Controller M_ctrl(
                .instruction(M_currentInstruction),
                .reset(reset),
+               .currentStage(`stageM),
                .bubble(M_bubble),
                .debugPC(M_pc)
            );
 
-// TODO: Check the forward consistency of memory address data.
-ForwardController M_store_reader (
-                      .request(M_ctrl.rt),
-                      .original(M_grfReadOutput2),
+ForwardController M_regRead1_forward (
+                      .request(M_ctrl.regRead1),
+                      .original(M_regRead1),
+                      .enabled(1'b0),
+                      .debugPC(M_pc),
+                      .debugStage("M"),
+
+                      .src1Valid(forwardValidW),
+                      .src1Reg(forwardAddressW),
+                      .src1Value(forwardValueW),
+
+                      .src2Valid(forwardValid3),
+                      .src2Reg(5'b0),
+                      .src2Value(forwardValue3),
+
+                      .src3Reg(5'b0)
+                  );
+
+ForwardController M_regRead2_forward (
+                      .request(M_ctrl.regRead2),
+                      .original(M_regRead2),
                       .enabled(M_ctrl.memStore),
                       .debugPC(M_pc),
                       .debugStage("M"),
@@ -342,13 +363,13 @@ ForwardController M_store_reader (
                       .src1Value(forwardValueW),
 
                       .src2Valid(forwardValid3),
-                      .src2Reg(forwardSource3),
+                      .src2Reg(5'b0),
                       .src2Value(forwardValue3),
 
                       .src3Reg(5'b0)
                   );
 
-assign M_data_waiting = M_store_reader.stallExec;
+assign M_data_waiting = M_regRead1_forward.stallExec || M_regRead2_forward.stallExec;
 
 DataMemory M_dm(
                .clk(clk),
@@ -356,7 +377,7 @@ DataMemory M_dm(
                .debugPC(M_pc),
                .writeEnable(M_ctrl.memStore),
                .address(M_aluOutput),
-               .writeData(M_store_reader.value) // register@rt
+               .writeData(M_regRead2_forward.value) // register@regRead2
            );
 
 
@@ -388,6 +409,7 @@ end
 Controller W_ctrl(
                .instruction(W_currentInstruction),
                .reset(reset),
+               .currentStage(`stageW),
                .bubble(W_bubble),
                .debugPC(W_pc)
            );
@@ -409,43 +431,6 @@ always @(*) begin
             end
         endcase
     end
-end
-
-// ======= Redundant Stage ========
-reg [31:0] R_write_value;
-reg [4:0] R_write_addr;
-assign forwardSource3 = R_write_addr;
-assign forwardValue3 = R_write_value;
-
-always @(posedge clk) begin
-    R_write_value <= grfWriteData;
-    R_write_addr <= grfWriteAddress;
-end
-
-// ======== Stall Controller ========
-
-initial begin
-`ifdef DEBUG
-    $dumpvars(0, F_im.pc);
-    $dumpvars(0, F_im.absJump);
-    $dumpvars(0, F_im.absJumpAddress);
-    $dumpvars(0, D_pc);
-    $dumpvars(0, D_stall);
-    $dumpvars(0, E_stall);
-    $dumpvars(0, E_pc);
-    $dumpvars(0, E_data_waiting);
-    $dumpvars(0, D_data_waiting);
-    $dumpvars(0, M_pc);
-    $dumpvars(0, W_pc);
-    $dumpvars(0, grfWriteAddress);
-    $dumpvars(0, grfWriteData);
-    $dumpvars(0, stallLevel);
-    $dumpvars(0, E_bubble);
-    $dumpvars(0, M_bubble);
-    $dumpvars(0, W_bubble);
-    $dumpvars(0, M_aluOutput);
-    $dumpvars(0, D_equal);
-`endif
 end
 
 endmodule

@@ -13,29 +13,8 @@ module GeneralRegisterFile(
 reg [31:0] registers [31:0];
 
 always @(*) begin
-    if (readAddress1 == 0) begin
-        readOutput1 = 0;
-    end
-    else begin
-        if (readAddress1 == writeAddress) begin
-            readOutput1 = writeData;
-        end
-        else begin
-            readOutput1 = registers[readAddress1];
-        end
-    end
-
-    if (readAddress2 == 0) begin
-        readOutput2 = 0;
-    end
-    else begin
-        if (readAddress2 == writeAddress) begin
-            readOutput2 = writeData;
-        end
-        else begin
-            readOutput2 = registers[readAddress2];
-        end
-    end
+    readOutput1 = registers[readAddress1];
+    readOutput2 = registers[readAddress2];
 end
 
 integer i;

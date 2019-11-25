@@ -22,3 +22,8 @@
 `define stallDecode 2
 `define stallExecution 3
 `define stallMemory 4
+
+`define stageD 3'd1
+`define stageE 3'd2
+`define stageM 3'd3
+`define stageW 3'd4
