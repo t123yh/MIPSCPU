@@ -49,8 +49,8 @@ localparam jal = 6'b000011;
 localparam addiu = 6'b001001;
 localparam j = 6'b000010;
 
-localparam add = 6'b100001;
-localparam sub = 6'b100011;
+localparam addu = 6'b100001;
+localparam subu = 6'b100011;
 localparam sll = 6'b000000;
 localparam jr = 6'b001000;
 localparam syscall = 6'b001100;
@@ -104,14 +104,14 @@ always @(*) begin
     case (opcode)
         R: begin
             case(funct)
-                add: begin
+                addu: begin
                     regRead1 = rsi;
                     regRead2 = rti;
                     grfWriteSource = `grfWriteALU;
                     destinationRegister = rd;
                     aluCtrl = `aluAdd;
                 end
-                sub: begin
+                subu: begin
                     regRead1 = rsi;
                     regRead2 = rti;
                     grfWriteSource = `grfWriteALU;
