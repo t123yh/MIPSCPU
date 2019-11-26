@@ -36,6 +36,10 @@ always @(*) begin
             out <= A & B;
         `aluShiftLeft:
             out <= A << B;
+        `aluXor:
+            out <= A ^ B;
+        `aluNor:
+            out <= A ~| B;
     endcase
 end
 

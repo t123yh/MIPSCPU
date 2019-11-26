@@ -51,6 +51,10 @@ localparam j = 6'b000010;
 
 localparam addu = 6'b100001;
 localparam subu = 6'b100011;
+localparam _and = 6'b100100;
+localparam _or = 6'b100101;
+localparam _xor = 6'b100110;
+localparam _nor = 6'b100111;
 localparam sll = 6'b000000;
 localparam jr = 6'b001000;
 localparam syscall = 6'b001100;
@@ -79,6 +83,8 @@ always @(*) begin
     end
 end
 
+`define simpleALU regRead1 = rsi; regRead2 = rti; grfWriteSource = `grfWriteALU; destinationRegister = rd;
+
 always @(*) begin
     memLoad = 0;
     memStore = 0;
@@ -105,18 +111,28 @@ always @(*) begin
         R: begin
             case(funct)
                 addu: begin
-                    regRead1 = rsi;
-                    regRead2 = rti;
-                    grfWriteSource = `grfWriteALU;
-                    destinationRegister = rd;
+                    `simpleALU
                     aluCtrl = `aluAdd;
                 end
                 subu: begin
-                    regRead1 = rsi;
-                    regRead2 = rti;
-                    grfWriteSource = `grfWriteALU;
-                    destinationRegister = rd;
+                    `simpleALU
                     aluCtrl = `aluSub;
+                end
+                _and: begin
+                    `simpleALU
+                    aluCtrl = `aluAnd;
+                end
+                _or: begin
+                    `simpleALU
+                    aluCtrl = `aluOr;
+                end
+                _nor: begin
+                    `simpleALU
+                    aluCtrl = `aluNor;
+                end
+                _xor: begin
+                    `simpleALU
+                    aluCtrl = `aluXor;
                 end
                 sll: begin
                     regRead1 = rsi;
