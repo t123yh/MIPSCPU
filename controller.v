@@ -31,7 +31,7 @@ wire [5:0] funct = instruction[5:0];
 
 wire [4:0] rti = instruction[20:16];
 wire [4:0] rsi = instruction[25:21];
-wire [4:0] rd = instruction[15:11];
+wire [4:0] rdi = instruction[15:11];
 
 wire[25:0] bigImm = instruction[25:0];
 wire [15:0] imm = instruction[15:0];
@@ -88,12 +88,12 @@ end
     regRead1 = rsi; \
     regRead2 = rti;\
     grfWriteSource = `grfWriteALU; \
-    destinationRegister = rd;
+    destinationRegister = rdi;
 
 `define simpleShift \
     regRead1 = rti; \
     grfWriteSource = `grfWriteALU; \
-    destinationRegister = rd; \
+    destinationRegister = rdi; \
     aluSrc = 1; \
     immediate = instruction[10:6]; 
 
