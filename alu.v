@@ -30,16 +30,20 @@ always @(*) begin
             out <= A + B;
         `aluSub:
             out <= A - B;
+
         `aluOr:
             out <= A | B;
         `aluAnd:
             out <= A & B;
-        `aluShiftLeft:
-            out <= A << B;
         `aluXor:
             out <= A ^ B;
         `aluNor:
             out <= A ~| B;
+
+        `aluShiftLeft:
+            out <= A << B;
+        `aluShiftRight:
+            out <= A >> B;
     endcase
 end
 
