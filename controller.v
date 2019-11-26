@@ -58,6 +58,9 @@ localparam _nor = 6'b100111;
 localparam sll = 6'b000000;
 localparam srl = 6'b000010;
 localparam sra = 6'b000011;
+localparam sllv = 6'b000100;
+localparam srlv = 6'b000110;
+localparam srav = 6'b000111;
 localparam jr = 6'b001000;
 localparam syscall = 6'b001100;
 
@@ -97,6 +100,12 @@ end
     destinationRegister = rdi; \
     aluSrc = 1; \
     immediate = instruction[10:6]; 
+
+`define simpleShiftVariable \
+    regRead1 = rti; \
+    regRead2 = rsi; \
+    grfWriteSource = `grfWriteALU; \
+    destinationRegister = rdi;
 
 always @(*) begin
     memLoad = 0;
@@ -158,6 +167,19 @@ always @(*) begin
                 end
                 sra: begin
                     `simpleShift
+                    aluCtrl = `aluArithmeticShiftRight;
+                end
+
+                sllv: begin
+                    `simpleShiftVariable
+                    aluCtrl = `aluShiftLeft;
+                end
+                srlv: begin
+                    `simpleShiftVariable
+                    aluCtrl = `aluShiftRight;
+                end
+                srav: begin
+                    `simpleShiftVariable
                     aluCtrl = `aluArithmeticShiftRight;
                 end
 
