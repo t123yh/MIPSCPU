@@ -101,6 +101,7 @@ always @(*) begin
     else if (currentStage == `stageE) begin
         if (aluCtrl != `aluDisabled) begin
             regRead1Required = 1;
+            if (aluSrc == 0)
             regRead2Required = 1;
         end
     end
