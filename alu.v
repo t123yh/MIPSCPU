@@ -1,9 +1,4 @@
 `include "constants.v"
-//% @file alu.v
-//% @brief xor with two inputs
-
-//% Xor Module brief description
-// @attribute A shit
 module ArithmeticLogicUnit (
            input [31:0] A,
            input [31:0] B,
@@ -11,13 +6,6 @@ module ArithmeticLogicUnit (
            output reg [31:0] out,
            output overflow
        );
-
-initial begin
-`ifdef DEBUG
-    $dumpvars(0, A);
-    $dumpvars(0, B);
-`endif
-end
 
 wire [32:0] extA = A, extB = B;
 reg [32:0] tmp;
