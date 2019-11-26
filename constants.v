@@ -7,6 +7,7 @@
 `define aluNor 6
 `define aluXor 7
 `define aluShiftRight 8
+`define aluArithmeticShiftRight 9
 `define DEBUG
 // `define VERBOSE
 

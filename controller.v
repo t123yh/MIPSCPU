@@ -57,6 +57,7 @@ localparam _xor = 6'b100110;
 localparam _nor = 6'b100111;
 localparam sll = 6'b000000;
 localparam srl = 6'b000010;
+localparam sra = 6'b000011;
 localparam jr = 6'b001000;
 localparam syscall = 6'b001100;
 
@@ -154,6 +155,10 @@ always @(*) begin
                 srl: begin
                     `simpleShift
                     aluCtrl = `aluShiftRight;
+                end
+                sra: begin
+                    `simpleShift
+                    aluCtrl = `aluArithmeticShiftRight;
                 end
 
                 jr: begin

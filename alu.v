@@ -44,6 +44,8 @@ always @(*) begin
             out <= A << B;
         `aluShiftRight:
             out <= A >> B;
+        `aluArithmeticShiftRight:
+            out <= $signed(A) >>> B;
     endcase
 end
 
