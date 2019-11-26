@@ -1,9 +1,11 @@
 `define aluDisabled 0
-`define aluAdd 5
 `define aluSub 1
 `define aluOr 2
 `define aluAnd 3
 `define aluShiftLeft 4
+`define aluAdd 5
+`define aluNor 6
+`define aluXor 7
 `define DEBUG
 // `define VERBOSE
 
