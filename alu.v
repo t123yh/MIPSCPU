@@ -57,6 +57,14 @@ always @(*) begin
             out = A >> B[4:0];
         `aluArithmeticShiftRight:
             out = $signed(A) >>> B[4:0];
+        
+        `aluSLT: begin
+            out = ($signed(A) < $signed(B)) ? 32'b1 : 32'b0;
+        end
+
+        `aluSLTU: begin
+            out = (A < B) ? 32'b1 : 32'b0;
+        end
     endcase
 end
 

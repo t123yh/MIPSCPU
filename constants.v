@@ -8,6 +8,8 @@
 `define aluXor 7
 `define aluShiftRight 8
 `define aluArithmeticShiftRight 9
+`define aluSLT 10
+`define aluSLTU 11
 `define DEBUG
 // `define VERBOSE
 
