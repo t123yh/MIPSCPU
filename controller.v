@@ -71,6 +71,7 @@ localparam sra = 6'b000011;
 localparam sllv = 6'b000100;
 localparam srlv = 6'b000110;
 localparam srav = 6'b000111;
+localparam jalr = 6'b001001;
 
 localparam slt = 6'b101010;
 localparam sltu = 6'b101011;
@@ -237,6 +238,15 @@ always @(*) begin
                     absJump = 1;
                     absJumpLoc = `absJumpRegister;
                 end
+
+                jalr: begin
+                    regRead1 = rsi;
+                    absJump = 1;
+                    absJumpLoc = `absJumpRegister;
+                    grfWriteSource = `grfWritePC;
+                    destinationRegister = rdi;
+                end
+
                 syscall: begin
                     bye = 1;
                 end
