@@ -37,7 +37,7 @@ always @(*) begin
         `aluXor:
             out = A ^ B;
         `aluNor:
-            out = A ~| B;
+            out = ~(A | B);
 
         `aluShiftLeft:
             out = A << B[4:0];
