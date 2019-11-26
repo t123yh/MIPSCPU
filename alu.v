@@ -41,11 +41,11 @@ always @(*) begin
             out <= A ~| B;
 
         `aluShiftLeft:
-            out <= A << B;
+            out <= A << B[4:0];
         `aluShiftRight:
-            out <= A >> B;
+            out <= A >> B[4:0];
         `aluArithmeticShiftRight:
-            out <= $signed(A) >>> B;
+            out <= $signed(A) >>> B[4:0];
     endcase
 end
 
