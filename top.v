@@ -359,7 +359,7 @@ DataMemory M_dm(
                .widthCtrl(M_ctrl.memWidthCtrl),
                .extendCtrl(M_ctrl.memReadSignExtend),
                .address(M_aluOutput),
-               .writeData(M_regRead2_forward.value) // register@regRead2
+               .writeDataIn(M_regRead2_forward.value) // register@regRead2
            );
 
 
