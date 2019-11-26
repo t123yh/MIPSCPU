@@ -8,7 +8,8 @@ module ArithmeticLogicUnit (
            input [31:0] A,
            input [31:0] B,
            input [3:0] ctrl,
-           output reg [31:0] out
+           output reg [31:0] out,
+           output overflow
        );
 
 initial begin
@@ -18,34 +19,44 @@ initial begin
 `endif
 end
 
+wire [32:0] extA = A, extB = B;
+reg [32:0] tmp;
+assign overflow = tmp[32] != tmp[31];
+
 always @(*) begin
+    tmp = 0;
+    out = 0;
     case (ctrl)
 `ifdef DEBUG
 
         `aluDisabled:
-            out <= 'bx;
+            out = 'bx;
 `endif
 
-        `aluAdd:
-            out <= A + B;
-        `aluSub:
-            out <= A - B;
+        `aluAdd: begin
+            tmp = extA + extB;
+            out = tmp[31:0];
+        end
+        `aluSub: begin
+            tmp = extA - extB;
+            out = tmp[31:0];
+        end
 
         `aluOr:
-            out <= A | B;
+            out = A | B;
         `aluAnd:
-            out <= A & B;
+            out = A & B;
         `aluXor:
-            out <= A ^ B;
+            out = A ^ B;
         `aluNor:
-            out <= A ~| B;
+            out = A ~| B;
 
         `aluShiftLeft:
-            out <= A << B[4:0];
+            out = A << B[4:0];
         `aluShiftRight:
-            out <= A >> B[4:0];
+            out = A >> B[4:0];
         `aluArithmeticShiftRight:
-            out <= $signed(A) >>> B[4:0];
+            out = $signed(A) >>> B[4:0];
     endcase
 end
 
