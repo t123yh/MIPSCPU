@@ -356,6 +356,8 @@ DataMemory M_dm(
                .reset(reset),
                .debugPC(M_pc),
                .writeEnable(M_ctrl.memStore),
+               .widthCtrl(M_ctrl.memWidthCtrl),
+               .extendCtrl(M_ctrl.memReadSignExtend),
                .address(M_aluOutput),
                .writeData(M_regRead2_forward.value) // register@regRead2
            );

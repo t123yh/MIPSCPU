@@ -13,6 +13,8 @@ module Controller (
            output reg regRead2Required,
 
            output reg memLoad,
+           output reg [1:0] memWidthCtrl,
+           output reg memReadSignExtend,
            output reg memStore,
            output reg branch,
            output reg [31:0] immediate,
@@ -56,6 +58,10 @@ localparam jal = 6'b000011;
 localparam addiu = 6'b001001;
 localparam addi = 6'b001000;
 localparam j = 6'b000010;
+localparam lb = 6'b100000;
+localparam lbu = 6'b100100;
+localparam lh = 6'b100001;
+localparam lhu = 6'b100101;
 
 localparam addu = 6'b100001;
 localparam add = 6'b100000;
@@ -135,6 +141,15 @@ end
     branch = 1; \
     immediate = signExtendedImmediate;
 
+`define simpleMemoryLoad \
+    regRead1 = rsi; \
+    memLoad = 1; \
+    grfWriteSource = `grfWriteMem; \
+    destinationRegister = rti; \
+    aluSrc = 1; \
+    aluCtrl = `aluAdd; \
+    immediate = signExtendedImmediate; \
+
 always @(*) begin
     memLoad = 0;
     memStore = 0;
@@ -147,6 +162,8 @@ always @(*) begin
     regRead1 = 0;
     bye = 0;
     regRead2 = 0;
+    memWidthCtrl = 0;
+    memReadSignExtend = 0;
     checkOverflow = 0;
 `ifdef DEBUG
 
@@ -297,13 +314,32 @@ always @(*) begin
         end
 
         lw: begin
-            regRead1 = rsi;
-            memLoad = 1;
-            grfWriteSource = `grfWriteMem;
-            destinationRegister = rti;
-            aluSrc = 1;
-            aluCtrl = `aluAdd;
-            immediate = signExtendedImmediate;
+            `simpleMemoryLoad
+            memWidthCtrl = `memWidth4;
+        end
+
+        lh: begin
+            `simpleMemoryLoad
+            memWidthCtrl = `memWidth2;
+            memReadSignExtend = 1;
+        end
+
+        lb: begin
+            `simpleMemoryLoad
+            memWidthCtrl = `memWidth1;
+            memReadSignExtend = 1;
+        end
+
+        lhu: begin
+            `simpleMemoryLoad
+            memWidthCtrl = `memWidth2;
+            memReadSignExtend = 0;
+        end
+
+        lbu: begin
+            `simpleMemoryLoad
+            memWidthCtrl = `memWidth1;
+            memReadSignExtend = 0;
         end
 
         sw: begin
@@ -364,6 +400,7 @@ always @(*) begin
             absJumpLoc = `absJumpImmediate;
             immediate = bigImm;
         end
+
     endcase
 end
 
