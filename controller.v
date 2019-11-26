@@ -42,12 +42,15 @@ wire [31:0] signExtendedImmediate = $signed(imm);
 
 localparam R = 6'b000000;
 localparam ori = 6'b001101;
+localparam andi = 6'b001100;
+localparam xori = 6'b001110;
 localparam lw = 6'b100011;
 localparam sw = 6'b101011;
 localparam beq = 6'b000100;
 localparam lui = 6'b001111;
 localparam jal = 6'b000011;
 localparam addiu = 6'b001001;
+localparam addi = 6'b001000;
 localparam j = 6'b000010;
 
 localparam addu = 6'b100001;
@@ -109,6 +112,12 @@ end
     regRead2 = rsi; \
     grfWriteSource = `grfWriteALU; \
     destinationRegister = rdi;
+
+`define simpleALUImmediate \
+    regRead1 = rsi; \
+    grfWriteSource = `grfWriteALU; \
+    destinationRegister = rti; \
+    aluSrc = 1;
 
 always @(*) begin
     memLoad = 0;
@@ -210,21 +219,34 @@ always @(*) begin
         end
 
         addiu: begin
-            regRead1 = rsi;
-            grfWriteSource = `grfWriteALU;
-            aluCtrl = `aluAdd;
-            destinationRegister = rti;
-            aluSrc = 1;
+            `simpleALUImmediate
             immediate = signExtendedImmediate;
+            aluCtrl = `aluAdd;
+        end
+
+        addi: begin
+            `simpleALUImmediate
+            immediate = signExtendedImmediate;
+            aluCtrl = `aluAdd;
+            checkOverflow = 1;
         end
 
         ori: begin
-            regRead1 = rsi;
-            grfWriteSource = `grfWriteALU;
-            aluCtrl = `aluOr;
-            destinationRegister = rti;
-            aluSrc = 1;
+            `simpleALUImmediate
             immediate = zeroExtendedImmediate;
+            aluCtrl = `aluOr;
+        end
+
+        xori: begin
+            `simpleALUImmediate
+            immediate = zeroExtendedImmediate;
+            aluCtrl = `aluXor;
+        end
+
+        andi: begin
+            `simpleALUImmediate
+            immediate = zeroExtendedImmediate;
+            aluCtrl = `aluAnd;
         end
 
         lw: begin
