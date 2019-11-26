@@ -83,7 +83,11 @@ always @(*) begin
     end
 end
 
-`define simpleALU regRead1 = rsi; regRead2 = rti; grfWriteSource = `grfWriteALU; destinationRegister = rd;
+`define simpleALU \
+    regRead1 = rsi; \
+    regRead2 = rti;\
+    grfWriteSource = `grfWriteALU; \
+    destinationRegister = rd;
 
 always @(*) begin
     memLoad = 0;
