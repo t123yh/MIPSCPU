@@ -23,6 +23,7 @@ module Controller (
            output reg absJump,
            output reg absJumpLoc, // 1 = immediate, 0 = register
            output reg [3:0] grfWriteSource,
+           output reg checkOverflow,
            output reg bye
        );
 
@@ -50,7 +51,9 @@ localparam addiu = 6'b001001;
 localparam j = 6'b000010;
 
 localparam addu = 6'b100001;
+localparam add = 6'b100000;
 localparam subu = 6'b100011;
+localparam sub = 6'b100010;
 localparam _and = 6'b100100;
 localparam _or = 6'b100101;
 localparam _xor = 6'b100110;
@@ -119,6 +122,7 @@ always @(*) begin
     regRead1 = 0;
     bye = 0;
     regRead2 = 0;
+    checkOverflow = 0;
 `ifdef DEBUG
 
     immediate = 'bx;
@@ -140,6 +144,17 @@ always @(*) begin
                     `simpleALU
                     aluCtrl = `aluSub;
                 end
+                add: begin
+                    `simpleALU
+                    aluCtrl = `aluAdd;
+                    checkOverflow = 1;
+                end
+                sub: begin
+                    `simpleALU
+                    aluCtrl = `aluSub;
+                    checkOverflow = 1;
+                end
+
                 _and: begin
                     `simpleALU
                     aluCtrl = `aluAnd;
