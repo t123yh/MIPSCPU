@@ -136,19 +136,17 @@ ForwardController D_regRead2_forward (
 
 assign D_data_waiting = D_regRead1_forward.stallExec || D_regRead2_forward.stallExec;
 
-wire [31:0] D_branch_in1 = D_regRead1_forward.value;
-wire [31:0] D_branch_in2 = D_regRead2_forward.value;
-
-wire D_equal = D_branch_in1 == D_branch_in2;
+Comparator cmp(
+               .A(D_regRead1_forward.value),
+               .B(D_regRead2_forward.value),
+               .ctrl(D_ctrl.cmpCtrl)
+           );
 always @(*) begin
-    if (D_ctrl.branch && D_ctrl.branchEQ) begin
-        if (D_equal) begin
-            F_jump = 1;
-            F_jumpAddr = D_pc + 4 + (D_ctrl.immediate << 2);
-        end
-        else begin
-            F_jump = 0;
-        end
+    F_jump = 0;
+    F_jumpAddr = 0;
+    if (D_ctrl.branch) begin
+        F_jump = cmp.action;
+        F_jumpAddr = D_pc + 4 + (D_ctrl.immediate << 2);
     end
     else if (D_ctrl.absJump) begin
         F_jump = 1;
@@ -158,9 +156,6 @@ always @(*) begin
         else begin
             F_jumpAddr = D_regRead1_forward.value;
         end
-    end
-    else begin
-        F_jump = 0;
     end
 end
 

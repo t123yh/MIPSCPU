@@ -15,11 +15,11 @@ module Controller (
            output reg memLoad,
            output reg memStore,
            output reg branch,
-           output reg branchEQ,
            output reg [31:0] immediate,
            output reg [4:0] destinationRegister,
            output reg aluSrc,
            output reg [3:0] aluCtrl,
+           output reg [3:0] cmpCtrl,
            output reg absJump,
            output reg absJumpLoc, // 1 = immediate, 0 = register
            output reg [3:0] grfWriteSource,
@@ -47,6 +47,10 @@ localparam xori = 6'b001110;
 localparam lw = 6'b100011;
 localparam sw = 6'b101011;
 localparam beq = 6'b000100;
+localparam bne = 6'b000101;
+localparam blez = 6'b000110;
+localparam bgtz = 6'b000111;
+localparam bltz_bgez = 6'b000001;
 localparam lui = 6'b001111;
 localparam jal = 6'b000011;
 localparam addiu = 6'b001001;
@@ -124,6 +128,11 @@ end
     grfWriteSource = `grfWriteALU; \
     destinationRegister = rti; \
     aluSrc = 1;
+
+`define simpleBranch \
+    regRead1 = rsi; \
+    branch = 1; \
+    immediate = signExtendedImmediate;
 
 always @(*) begin
     memLoad = 0;
@@ -297,11 +306,30 @@ always @(*) begin
         end
 
         beq: begin
-            regRead1 = rsi;
+            `simpleBranch
             regRead2 = rti;
-            branch = 1;
-            branchEQ = 1;
-            immediate = signExtendedImmediate;
+            cmpCtrl = `cmpEqual;
+        end
+
+        bne: begin
+            `simpleBranch
+            regRead2 = rti;
+            cmpCtrl = `cmpNotEqual;
+        end
+
+        blez: begin
+            `simpleBranch
+            cmpCtrl = `cmpLessThanOrEqualToZero;
+        end
+
+        bgtz: begin
+            `simpleBranch
+            cmpCtrl = `cmpGreaterThanZero;
+        end
+
+        bltz_bgez: begin
+            `simpleBranch
+            cmpCtrl = rti == 1 ? `cmpGreaterThanOrEqualToZero : `cmpLessThanZero;
         end
 
         lui: begin

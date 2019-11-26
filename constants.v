@@ -11,6 +11,13 @@
 `define aluSLT 10
 `define aluSLTU 11
 
+`define cmpEqual 1
+`define cmpNotEqual 2
+`define cmpLessThanOrEqualToZero 3
+`define cmpLessThanZero 4
+`define cmpGreaterThanOrEqualToZero 5
+`define cmpGreaterThanZero 6
+
 `define DEBUG
 // `define VERBOSE
 
