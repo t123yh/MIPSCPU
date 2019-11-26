@@ -4,7 +4,7 @@ module ArithmeticLogicUnit (
            input [31:0] B,
            input [3:0] ctrl,
            output reg [31:0] out,
-           output overflow
+           output overflow // TODO: overflow bit is untested.
        );
 
 wire [32:0] extA = A, extB = B;
