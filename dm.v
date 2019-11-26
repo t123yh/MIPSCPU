@@ -3,16 +3,59 @@ module DataMemory(
            input clk,
            input reset,
            input writeEnable,
+           input [1:0] widthCtrl,
+           input extendCtrl,
            input [31:0] address,
            input [31:0] writeData,
-           output [31:0] readData,
+           output reg [31:0] readData,
            input [31:0] debugPC
        );
 
-reg [31:0] memory [1023:0];
+reg [31:0] memory [4095:0];
 
-wire [9:0] realAddress = address[11:2];
-assign readData = memory[realAddress];
+wire [11:0] realAddress = address[13:2];
+reg [15:0] halfWord;
+reg [7:0] byte;
+always @(*) begin
+    readData = 0;
+    if (widthCtrl == `memWidth4) begin
+        readData = memory[realAddress];
+    end
+    else if (widthCtrl == `memWidth2) begin
+        if (address[1]) begin
+            halfWord = memory[realAddress][31:16];
+        end
+        else begin
+            halfWord = memory[realAddress][15:0];
+        end
+        if (extendCtrl) begin
+            readData = $signed(halfWord);
+        end
+        else begin
+            readData = halfWord;
+        end
+    end
+    else if (widthCtrl == `memWidth1) begin
+        if (address[1:0] == 3) begin
+            byte = memory[realAddress][31:24];
+        end
+        else if (address[1:0] == 2) begin
+            byte = memory[realAddress][23:16];
+        end
+        else if (address[1:0] == 1) begin
+            byte = memory[realAddress][15:8];
+        end
+        else if (address[1:0] == 0) begin
+            byte = memory[realAddress][7:0];
+        end
+        if (extendCtrl) begin
+            readData = $signed(byte);
+        end
+        else begin
+            readData = byte;
+        end
+    end
+end
 
 integer i;
 always @(posedge clk) begin

@@ -18,6 +18,10 @@
 `define cmpGreaterThanOrEqualToZero 5
 `define cmpGreaterThanZero 6
 
+`define memWidth4 1
+`define memWidth2 2
+`define memWidth1 3
+
 `define DEBUG
 // `define VERBOSE
 
