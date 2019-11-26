@@ -6,7 +6,7 @@ module DataMemory(
            input [1:0] widthCtrl,
            input extendCtrl,
            input [31:0] address,
-           input [31:0] writeData,
+           input [31:0] writeDataIn,
            output reg [31:0] readData,
            input [31:0] debugPC
        );
@@ -57,6 +57,37 @@ always @(*) begin
     end
 end
 
+reg [31:0] writeData;
+
+always @(*) begin
+    writeData = 0;
+    if (widthCtrl == `memWidth4) begin
+        writeData = writeDataIn;
+    end
+    else if (widthCtrl == `memWidth2) begin
+        if (address[1] == 1) begin
+            writeData = {writeDataIn[15:0], memory[realAddress][15:0]};
+        end
+        else begin
+            writeData = {memory[realAddress][31:16], writeDataIn[15:0]};
+        end
+    end
+    else if (widthCtrl == `memWidth1) begin
+        if (address[1:0] == 3) begin
+            writeData = {writeDataIn[7:0], memory[realAddress][23:0]};
+        end
+        else if (address[1:0] == 2) begin
+            writeData = {memory[realAddress][31:24], writeDataIn[7:0], memory[realAddress][15:0]};
+        end
+        else if (address[1:0] == 1) begin
+            writeData = {memory[realAddress][31:16], writeDataIn[7:0], memory[realAddress][7:0]};
+        end
+        else begin
+            writeData = {memory[realAddress][31:8], writeDataIn[7:0]};
+        end
+    end
+end
+
 integer i;
 always @(posedge clk) begin
     if (reset) begin
@@ -66,9 +97,9 @@ always @(posedge clk) begin
     end
     else if (writeEnable) begin
 `ifdef DEBUG
-        $display("@%h: *%h <= %h", debugPC, address, writeData);
+        $display("@%h: *%h <= %h", debugPC, {18'h0, realAddress, 2'b0}, writeData);
 `else
-        $display("%d@%h: *%h <= %h", $time, debugPC, address, writeData);
+        $display("%d@%h: *%h <= %h", $time, debugPC,{18'h0, realAddress, 2'b0}, writeData);
 `endif
 
         memory[realAddress] <= writeData;

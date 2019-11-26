@@ -62,6 +62,8 @@ localparam lb = 6'b100000;
 localparam lbu = 6'b100100;
 localparam lh = 6'b100001;
 localparam lhu = 6'b100101;
+localparam sb = 6'b101000;
+localparam sh = 6'b101001;
 
 localparam addu = 6'b100001;
 localparam add = 6'b100000;
@@ -102,7 +104,7 @@ always @(*) begin
         if (aluCtrl != `aluDisabled) begin
             regRead1Required = 1;
             if (aluSrc == 0)
-            regRead2Required = 1;
+                regRead2Required = 1;
         end
     end
     else if (currentStage == `stageM) begin
@@ -150,6 +152,14 @@ end
     aluSrc = 1; \
     aluCtrl = `aluAdd; \
     immediate = signExtendedImmediate; \
+
+`define simpleMemoryStore \
+    regRead1 = rsi; \
+    regRead2 = rti; \
+    memStore = 1; \
+    aluSrc = 1; \
+    aluCtrl = `aluAdd; \
+    immediate = signExtendedImmediate;
 
 always @(*) begin
     memLoad = 0;
@@ -344,12 +354,18 @@ always @(*) begin
         end
 
         sw: begin
-            regRead1 = rsi;
-            regRead2 = rti;
-            memStore = 1;
-            aluSrc = 1;
-            aluCtrl = `aluAdd;
-            immediate = signExtendedImmediate;
+            `simpleMemoryStore
+            memWidthCtrl = `memWidth4;
+        end
+
+        sh: begin
+            `simpleMemoryStore
+            memWidthCtrl = `memWidth2;
+        end
+
+        sb: begin
+            `simpleMemoryStore
+            memWidthCtrl = `memWidth1;
         end
 
         beq: begin
