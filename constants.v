@@ -10,6 +10,7 @@
 `define aluArithmeticShiftRight 9
 `define aluSLT 10
 `define aluSLTU 11
+
 `define DEBUG
 // `define VERBOSE
 
@@ -20,8 +21,6 @@
 
 `define absJumpImmediate 1
 `define absJumpRegister 0
-
-`define bitsOfStatus 1000
 
 `define stallNone 0
 `define stallFetch 1
