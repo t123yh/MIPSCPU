@@ -88,6 +88,8 @@ localparam srav = 6'b000111;
 localparam jalr = 6'b001001;
 localparam mult = 6'b011000;
 localparam multu = 6'b011001;
+localparam div = 6'b011010;
+localparam divu = 6'b011011;
 localparam mfhi = 6'b010000;
 localparam mflo = 6'b010010;
 
@@ -301,6 +303,18 @@ always @(*) begin
                     regRead1 = rsi;
                     regRead2 = rti;
                     mulCtrl = `mtMultiplyUnsigned;
+                end
+
+                div: begin
+                    regRead1 = rsi;
+                    regRead2 = rti;
+                    mulCtrl = `mtDivide;
+                end
+
+                divu: begin
+                    regRead1 = rsi;
+                    regRead2 = rti;
+                    mulCtrl = `mtDivideUnsigned;
                 end
 
                 mfhi: begin
