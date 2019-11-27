@@ -134,7 +134,7 @@ ForwardController D_regRead2_forward (
                       .src3Value(forwardValueW)
                   );
 
-assign D_data_waiting = D_regRead1_forward.stallExec || D_regRead2_forward.stallExec;
+assign D_data_waiting = D_regRead1_forward.stallExec || D_regRead2_forward.stallExec || (D_ctrl.mulEnable && (E_mul.busy));
 
 Comparator cmp(
                .A(D_regRead1_forward.value),
@@ -204,7 +204,7 @@ always @(posedge clk) begin
     else begin
         E_regRead1 <= E_regRead1_forward.value;
         E_regRead2 <= E_regRead2_forward.value;
-end
+    end
 end
 
 Controller E_ctrl(
@@ -250,15 +250,37 @@ ForwardController E_regRead2_forward (
 
                       .src3Reg(5'b0)
                   );
-
-assign E_data_waiting = E_regRead1_forward.stallExec || E_regRead2_forward.stallExec;
+reg E_mul_collision;
+assign E_data_waiting = E_regRead1_forward.stallExec || E_regRead2_forward.stallExec || E_mul_collision;
 
 ArithmeticLogicUnit E_alu(
                         .ctrl(E_ctrl.aluCtrl),
                         .A(E_regRead1_forward.value),
                         .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_regRead2_forward.value)
                     );
+reg E_mulStart;
 
+always @(*) begin
+    E_mulStart = 0;
+    E_mul_collision = 0;
+    if (E_ctrl.mulEnable) begin
+        if (E_mul.busy) begin
+            E_mul_collision = 1;
+        end
+        else begin
+            E_mulStart = 1;
+        end
+    end
+end
+
+Multiplier E_mul(
+               .ctrl(E_ctrl.mulCtrl),
+               .start(E_mulStart),
+               .reset(reset),
+               .clk(clk),
+               .A(E_regRead1_forward.value),
+               .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_regRead2_forward.value)
+           );
 
 // ======== Memory Stage ========
 

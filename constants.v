@@ -43,3 +43,11 @@
 `define stageE 3'd2
 `define stageM 3'd3
 `define stageW 3'd4
+
+`define mtDisabled 0
+`define mtMultiply 1
+`define mtMultiplyUnsigned 2
+`define mtDivide 3
+`define mtDivideUnsigned 4
+`define mtSetHI 5
+`define mtSetLO 6

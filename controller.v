@@ -12,6 +12,9 @@ module Controller (
            output reg regRead1Required,
            output reg regRead2Required,
 
+           output reg [2:0] mulCtrl,
+           output mulEnable,
+
            output reg memLoad,
            output reg [1:0] memWidthCtrl,
            output reg memReadSignExtend,
@@ -41,6 +44,8 @@ wire [15:0] imm = instruction[15:0];
 wire [31:0] zeroExtendedImmediate = imm;
 wire [31:0] shiftedImmediate = {imm, 16'b0};
 wire [31:0] signExtendedImmediate = $signed(imm);
+
+assign mulEnable = mulCtrl != `mtDisabled;
 
 localparam R = 6'b000000;
 localparam ori = 6'b001101;
@@ -80,6 +85,8 @@ localparam sllv = 6'b000100;
 localparam srlv = 6'b000110;
 localparam srav = 6'b000111;
 localparam jalr = 6'b001001;
+localparam mult = 6'b011000;
+localparam multu = 6'b011001;
 
 localparam slt = 6'b101010;
 localparam sltu = 6'b101011;
@@ -101,7 +108,7 @@ always @(*) begin
         end
     end
     else if (currentStage == `stageE) begin
-        if (aluCtrl != `aluDisabled) begin
+        if (aluCtrl != `aluDisabled || mulCtrl != `mtDisabled) begin
             regRead1Required = 1;
             if (aluSrc == 0)
                 regRead2Required = 1;
@@ -176,6 +183,7 @@ always @(*) begin
     memWidthCtrl = 0;
     memReadSignExtend = 0;
     checkOverflow = 0;
+    mulCtrl = `mtDisabled;
 `ifdef DEBUG
 
     immediate = 'bx;
@@ -277,6 +285,18 @@ always @(*) begin
 
                 syscall: begin
                     bye = 1;
+                end
+
+                mult: begin
+                    regRead1 = rsi;
+                    regRead2 = rti;
+                    mulCtrl = `mtMultiply;
+                end
+
+                multu: begin
+                    regRead1 = rsi;
+                    regRead2 = rti;
+                    mulCtrl = `mtMultiplyUnsigned;
                 end
             endcase
         end
