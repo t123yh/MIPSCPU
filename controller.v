@@ -92,6 +92,8 @@ localparam div = 6'b011010;
 localparam divu = 6'b011011;
 localparam mfhi = 6'b010000;
 localparam mflo = 6'b010010;
+localparam mthi = 6'b010001;
+localparam mtlo = 6'b010011;
 
 localparam slt = 6'b101010;
 localparam sltu = 6'b101011;
@@ -327,6 +329,16 @@ always @(*) begin
                     mulOutputSel = 0;
                     destinationRegister = rdi;
                     grfWriteSource = `grfWriteMul;
+                end
+
+                mthi: begin
+                    regRead1 = rsi;
+                    mulCtrl = `mtSetHI;
+                end
+
+                mtlo: begin
+                    regRead1 = rsi;
+                    mulCtrl = `mtSetLO;
                 end
             endcase
         end
