@@ -201,6 +201,10 @@ always @(posedge clk) begin
         E_regRead1 <= D_regRead1_forward.value;
         E_regRead2 <= D_regRead2_forward.value;
     end
+    else begin
+        E_regRead1 <= E_regRead1_forward.value;
+        E_regRead2 <= E_regRead2_forward.value;
+end
 end
 
 Controller E_ctrl(
@@ -288,6 +292,10 @@ always @(posedge clk) begin
         M_regRead2 <= E_regRead2_forward.value;
         M_lastWriteDataValid <= E_regWriteDataValid;
         M_lastWriteData <= E_regWriteData;
+    end
+    else begin
+        M_regRead1 <= M_regRead1_forward.value;
+        M_regRead2 <= M_regRead2_forward.value;
     end
 end
 
