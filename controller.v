@@ -14,6 +14,7 @@ module Controller (
 
            output reg [2:0] mulCtrl,
            output mulEnable,
+           output reg mulOutputSel,
 
            output reg memLoad,
            output reg [1:0] memWidthCtrl,
@@ -87,6 +88,8 @@ localparam srav = 6'b000111;
 localparam jalr = 6'b001001;
 localparam mult = 6'b011000;
 localparam multu = 6'b011001;
+localparam mfhi = 6'b010000;
+localparam mflo = 6'b010010;
 
 localparam slt = 6'b101010;
 localparam sltu = 6'b101011;
@@ -183,6 +186,7 @@ always @(*) begin
     memWidthCtrl = 0;
     memReadSignExtend = 0;
     checkOverflow = 0;
+    mulOutputSel = 'bx;
     mulCtrl = `mtDisabled;
 `ifdef DEBUG
 
@@ -297,6 +301,18 @@ always @(*) begin
                     regRead1 = rsi;
                     regRead2 = rti;
                     mulCtrl = `mtMultiplyUnsigned;
+                end
+
+                mfhi: begin
+                    mulOutputSel = 1;
+                    destinationRegister = rdi;
+                    grfWriteSource = `grfWriteMul;
+                end
+
+                mflo: begin
+                    mulOutputSel = 0;
+                    destinationRegister = rdi;
+                    grfWriteSource = `grfWriteMul;
                 end
             endcase
         end

@@ -134,7 +134,7 @@ ForwardController D_regRead2_forward (
                       .src3Value(forwardValueW)
                   );
 
-assign D_data_waiting = D_regRead1_forward.stallExec || D_regRead2_forward.stallExec || (D_ctrl.mulEnable && (E_mul.busy));
+assign D_data_waiting = D_regRead1_forward.stallExec || D_regRead2_forward.stallExec;
 
 Comparator cmp(
                .A(D_regRead1_forward.value),
@@ -250,24 +250,25 @@ ForwardController E_regRead2_forward (
 
                       .src3Reg(5'b0)
                   );
-reg E_mul_collision;
-assign E_data_waiting = E_regRead1_forward.stallExec || E_regRead2_forward.stallExec || E_mul_collision;
 
 ArithmeticLogicUnit E_alu(
                         .ctrl(E_ctrl.aluCtrl),
                         .A(E_regRead1_forward.value),
                         .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_regRead2_forward.value)
                     );
+
+reg E_mul_collision;
+assign E_data_waiting = E_regRead1_forward.stallExec || E_regRead2_forward.stallExec || E_mul_collision;
 reg E_mulStart;
 
 always @(*) begin
     E_mulStart = 0;
     E_mul_collision = 0;
-    if (E_ctrl.mulEnable) begin
+    if (E_ctrl.mulEnable || E_ctrl.grfWriteSource == `grfWriteMul) begin
         if (E_mul.busy) begin
             E_mul_collision = 1;
         end
-        else begin
+        else if (E_ctrl.mulEnable) begin
             E_mulStart = 1;
         end
     end
@@ -282,6 +283,8 @@ Multiplier E_mul(
                .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_regRead2_forward.value)
            );
 
+wire [31:0] E_mul_value = E_ctrl.mulOutputSel ? E_mul.HI : E_mul.LO;
+
 // ======== Memory Stage ========
 
 wire M_stall = stallLevel >= `stallMemory;
@@ -290,6 +293,7 @@ wire M_insert_bubble = M_bubble || M_data_waiting;
 reg [31:0] M_currentInstruction;
 reg [31:0] M_pc;
 reg [31:0] M_aluOutput;
+reg [31:0] M_mulOutput;
 reg [31:0] M_regRead1;
 reg [31:0] M_regRead2;
 
@@ -310,6 +314,7 @@ always @(posedge clk) begin
         M_currentInstruction <= E_currentInstruction;
         M_pc <= E_pc;
         M_aluOutput <= E_alu.out;
+        M_mulOutput <= E_mul_value;
         M_regRead1 <= E_regRead1_forward.value;
         M_regRead2 <= E_regRead2_forward.value;
         M_lastWriteDataValid <= E_regWriteDataValid;
@@ -335,6 +340,10 @@ always @(*) begin
         case (M_ctrl.grfWriteSource)
             `grfWriteALU: begin
                 M_regWriteData = M_aluOutput;
+                M_regWriteDataValid = 1;
+            end
+            `grfWriteMul: begin
+                M_regWriteData = M_mulOutput;
                 M_regWriteDataValid = 1;
             end
         endcase

@@ -29,6 +29,7 @@
 `define grfWriteALU 1
 `define grfWriteMem 2
 `define grfWritePC 3
+`define grfWriteMul 4
 
 `define absJumpImmediate 1
 `define absJumpRegister 0
