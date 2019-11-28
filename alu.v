@@ -7,7 +7,7 @@ module ArithmeticLogicUnit (
            output overflow // TODO: overflow bit is untested.
        );
 
-wire [32:0] extA = A, extB = B;
+wire [32:0] extA = {1'b0, A}, extB = {1'b0, B};
 reg [32:0] tmp;
 assign overflow = tmp[32] != tmp[31];
 
