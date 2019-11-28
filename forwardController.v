@@ -33,6 +33,7 @@ always @(*) begin
     else if (src1Reg == request) begin
         if (!src1Valid) begin
             stall = 1;
+            value = 'bx;
         end
         else begin
             stall = 0;
