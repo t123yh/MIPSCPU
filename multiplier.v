@@ -21,6 +21,7 @@ reg [2:0] op;
 reg [3:0] cycles;
 
 always @(*) begin
+    cycles = 0;
     case (op)
         `mtMultiply, `mtMultiplyUnsigned:
             cycles = MultiplicationDelay;
