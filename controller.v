@@ -70,6 +70,7 @@ localparam lh = 6'b100001;
 localparam lhu = 6'b100101;
 localparam sb = 6'b101000;
 localparam sh = 6'b101001;
+localparam special2 = 6'b011100;
 
 localparam addu = 6'b100001;
 localparam add = 6'b100000;
@@ -94,6 +95,7 @@ localparam mfhi = 6'b010000;
 localparam mflo = 6'b010010;
 localparam mthi = 6'b010001;
 localparam mtlo = 6'b010011;
+localparam msub = 6'b000100;
 
 localparam slt = 6'b101010;
 localparam sltu = 6'b101011;
@@ -203,6 +205,15 @@ always @(*) begin
 
     if (!reset && !bubble)
     case (opcode)
+        special2: begin
+            case (funct)
+                msub: begin
+                    regRead1 = rsi;
+                    regRead2 = rti;
+                    mulCtrl = `mtMSUB;
+                end
+            endcase
+        end
         R: begin
             case(funct)
                 addu: begin
@@ -450,7 +461,7 @@ always @(*) begin
         bgtz: begin
             `simpleBranch
             cmpCtrl = `cmpGreaterThanZero;
-        end
+        end 
 
         bltz_bgez: begin
             `simpleBranch
