@@ -67,12 +67,16 @@ always @(posedge clk) begin
                 `mtMultiplyUnsigned:
                     {HI, LO} <= inA * inB;
                 `mtDivide: begin
-                    HI <= $signed(inA) % $signed(inB);
-                    LO <= $signed(inA) / $signed(inB);
+                    if (inB != 0) begin
+                        HI <= $signed(inA) % $signed(inB);
+                        LO <= $signed(inA) / $signed(inB);
+                    end
                 end
                 `mtDivideUnsigned: begin
-                    HI <= inA % inB;
-                    LO <= inA / inB;
+                    if (inB != 0) begin
+                        HI <= inA % inB;
+                        LO <= inA / inB;
+                    end
                 end
             endcase
 
