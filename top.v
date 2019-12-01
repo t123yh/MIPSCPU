@@ -276,7 +276,7 @@ end
 
 Multiplier E_mul(
                .ctrl(E_ctrl.mulCtrl),
-               .start(E_mulStart),
+               .start(!E_data_waiting && E_mulStart),
                .reset(reset),
                .clk(clk),
                .A(E_regRead1_forward.value),
@@ -394,7 +394,7 @@ DataMemory M_dm(
                .clk(clk),
                .reset(reset),
                .debugPC(M_pc),
-               .writeEnable(M_ctrl.memStore),
+               .writeEnable(!M_data_waiting && M_ctrl.memStore),
                .widthCtrl(M_ctrl.memWidthCtrl),
                .extendCtrl(M_ctrl.memReadSignExtend),
                .address(M_aluOutput),
