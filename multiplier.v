@@ -20,10 +20,12 @@ reg [3:0] counter;
 reg [2:0] op;
 reg [3:0] cycles;
 
+wire [63:0] multiplyResult = $signed(inA) * $signed(inB);
+
 always @(*) begin
     cycles = 0;
     case (op)
-        `mtMultiply, `mtMultiplyUnsigned:
+        `mtMultiply, `mtMultiplyUnsigned,`mtMSUB:
             cycles = MultiplicationDelay;
         `mtDivide, `mtDivideUnsigned:
             cycles = DivisionDelay;
@@ -60,6 +62,8 @@ always @(posedge clk) begin
             case (op)
                 `mtMultiply:
                     {HI, LO} <= $signed(inA) * $signed(inB);
+                `mtMSUB:
+                    {HI, LO} <= {HI, LO} - multiplyResult;
                 `mtMultiplyUnsigned:
                     {HI, LO} <= inA * inB;
                 `mtDivide: begin

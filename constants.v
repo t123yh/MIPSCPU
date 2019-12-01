@@ -52,3 +52,4 @@
 `define mtDivideUnsigned 4
 `define mtSetHI 5
 `define mtSetLO 6
+`define mtMSUB 7
