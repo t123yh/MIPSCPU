@@ -22,7 +22,7 @@
 `define memWidth2 2
 `define memWidth1 3
 
-`define DEBUG
+// `define DEBUG
 // `define VERBOSE
 
 `define grfWriteDisable 0
