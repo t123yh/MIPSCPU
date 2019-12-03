@@ -12,7 +12,7 @@ module Controller (
            output reg regRead1Required,
            output reg regRead2Required,
 
-           output reg [2:0] mulCtrl,
+           output reg [3:0] mulCtrl,
            output mulEnable,
            output reg mulOutputSel,
 
@@ -96,6 +96,8 @@ localparam mflo = 6'b010010;
 localparam mthi = 6'b010001;
 localparam mtlo = 6'b010011;
 localparam msub = 6'b000100;
+localparam madd = 6'b000000;
+localparam maddu = 6'b000001;
 
 localparam slt = 6'b101010;
 localparam sltu = 6'b101011;
@@ -177,6 +179,11 @@ end
     aluCtrl = `aluAdd; \
     immediate = signExtendedImmediate;
 
+`define simpleMUL   \
+    regRead1 = rsi; \
+    regRead2 = rti;
+
+
 always @(*) begin
     memLoad = 0;
     memStore = 0;
@@ -208,9 +215,16 @@ always @(*) begin
         special2: begin
             case (funct)
                 msub: begin
-                    regRead1 = rsi;
-                    regRead2 = rti;
+                    `simpleMUL
                     mulCtrl = `mtMSUB;
+                end
+                madd: begin
+                    `simpleMUL
+                    mulCtrl = `mtMADD;
+                end
+                maddu: begin
+                    `simpleMUL
+                    mulCtrl = `mtMADDU;
                 end
             endcase
         end
@@ -307,26 +321,22 @@ always @(*) begin
                 end
 
                 mult: begin
-                    regRead1 = rsi;
-                    regRead2 = rti;
+                    `simpleMUL
                     mulCtrl = `mtMultiply;
                 end
 
                 multu: begin
-                    regRead1 = rsi;
-                    regRead2 = rti;
+                    `simpleMUL
                     mulCtrl = `mtMultiplyUnsigned;
                 end
 
                 div: begin
-                    regRead1 = rsi;
-                    regRead2 = rti;
+                    `simpleMUL
                     mulCtrl = `mtDivide;
                 end
 
                 divu: begin
-                    regRead1 = rsi;
-                    regRead2 = rti;
+                    `simpleMUL
                     mulCtrl = `mtDivideUnsigned;
                 end
 
