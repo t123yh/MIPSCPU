@@ -53,3 +53,5 @@
 `define mtSetHI 5
 `define mtSetLO 6
 `define mtMSUB 7
+`define mtMADD 8
+`define mtMADDU 9

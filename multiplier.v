@@ -6,7 +6,7 @@ module Multiplier (
            input start,
            input [31:0] A,
            input [31:0] B,
-           input [2:0] ctrl,
+           input [3:0] ctrl,
            output reg busy,
            output reg [31:0] HI,
            output reg [31:0] LO
@@ -17,15 +17,16 @@ localparam DivisionDelay = 10;
 
 reg [31:0] inA, inB;
 reg [3:0] counter;
-reg [2:0] op;
+reg [3:0] op;
 reg [3:0] cycles;
 
 wire [63:0] multiplyResult = $signed(inA) * $signed(inB);
+wire [63:0] unsignedMultiplyResult = inA * inB;
 
 always @(*) begin
     cycles = 0;
     case (op)
-        `mtMultiply, `mtMultiplyUnsigned,`mtMSUB:
+        `mtMultiply, `mtMultiplyUnsigned,`mtMSUB, `mtMADD, `mtMADDU:
             cycles = MultiplicationDelay;
         `mtDivide, `mtDivideUnsigned:
             cycles = DivisionDelay;
@@ -64,6 +65,10 @@ always @(posedge clk) begin
                     {HI, LO} <= $signed(inA) * $signed(inB);
                 `mtMSUB:
                     {HI, LO} <= {HI, LO} - multiplyResult;
+                `mtMADD:
+                    {HI, LO} <= {HI, LO} + multiplyResult;
+                `mtMADDU:
+                    {HI, LO} <= {HI, LO} + unsignedMultiplyResult;
                 `mtMultiplyUnsigned:
                     {HI, LO} <= inA * inB;
                 `mtDivide: begin
