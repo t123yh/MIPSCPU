@@ -394,6 +394,7 @@ DataMemory M_dm(
                .clk(clk),
                .reset(reset),
                .debugPC(M_pc),
+               .readEnable(!M_data_waiting && M_ctrl.memLoad),
                .writeEnable(!M_data_waiting && M_ctrl.memStore),
                .widthCtrl(M_ctrl.memWidthCtrl),
                .extendCtrl(M_ctrl.memReadSignExtend),
