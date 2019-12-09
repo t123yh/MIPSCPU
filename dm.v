@@ -8,7 +8,8 @@ module DataMemory(
            input [31:0] address,
            input [31:0] writeDataIn,
            output reg [31:0] readData,
-           input [31:0] debugPC
+           input [31:0] debugPC,
+           output reg exception
        );
 
 reg [31:0] memory [4095:0];
@@ -17,11 +18,21 @@ wire [11:0] realAddress = address[13:2];
 reg [15:0] halfWord;
 reg [7:0] byte;
 always @(*) begin
+    exception = 0;
     readData = 0;
+    if (memory[realAddress] >= 32'h3000) begin
+        exception = 1;
+    end
     if (widthCtrl == `memWidth4) begin
+        if (address[1:0] != 0) begin
+            exception = 1;
+        end
         readData = memory[realAddress];
     end
     else if (widthCtrl == `memWidth2) begin
+        if (address[0] != 0) begin
+            exception = 1;
+        end
         if (address[1]) begin
             halfWord = memory[realAddress][31:16];
         end
