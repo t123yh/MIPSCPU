@@ -169,6 +169,7 @@ end
     destinationRegister = rti; \
     aluSrc = 1; \
     aluCtrl = `aluAdd; \
+    checkOverflow = 1; \
     immediate = signExtendedImmediate; \
 
 `define simpleMemoryStore \
@@ -177,6 +178,7 @@ end
     memStore = 1; \
     aluSrc = 1; \
     aluCtrl = `aluAdd; \
+    checkOverflow = 1; \
     immediate = signExtendedImmediate;
 
 `define simpleMUL   \
