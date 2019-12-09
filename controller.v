@@ -170,7 +170,7 @@ end
     aluSrc = 1; \
     aluCtrl = `aluAdd; \
     checkOverflow = 1; \
-    immediate = signExtendedImmediate; \
+    immediate = signExtendedImmediate; 
 
 `define simpleMemoryStore \
     regRead1 = rsi; \
