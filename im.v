@@ -6,7 +6,8 @@ module InstructionMemory(
            input pcStall,
            input [31:0] absJumpAddress, // In bytes
            output reg [31:0] pc,
-           output [31:0] instruction
+           output [31:0] instruction,
+           output reg exception
        );
 
 
@@ -18,6 +19,16 @@ end
 
 wire [31:0] realAddress = pc - 32'h3000;
 assign instruction = memory[realAddress[13:2]];
+
+always @(*) begin
+    exception = 0;
+    if (pc >= 32'h5000 || pc < 32'h3000) begin
+        exception = 1;
+    end
+    if (pc[1:0] != 0) begin
+        exception = 1;
+    end
+end
 
 always @(posedge clk) begin
 `ifdef DEBUG
