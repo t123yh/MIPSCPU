@@ -30,6 +30,7 @@ module Controller (
            output reg absJumpLoc, // 1 = immediate, 0 = register
            output reg [3:0] grfWriteSource,
            output reg checkOverflow,
+           output reg unknownInstruction,
            output reg bye
        );
 
@@ -203,6 +204,7 @@ always @(*) begin
     checkOverflow = 0;
     mulOutputSel = 'bx;
     mulCtrl = `mtDisabled;
+    unknownInstruction = 0;
 `ifdef DEBUG
 
     immediate = 'bx;
@@ -227,6 +229,9 @@ always @(*) begin
                 maddu: begin
                     `simpleMUL
                     mulCtrl = `mtMADDU;
+                end
+                default: begin
+                    unknownInstruction = 1;
                 end
             endcase
         end
@@ -362,6 +367,10 @@ always @(*) begin
                 mtlo: begin
                     regRead1 = rsi;
                     mulCtrl = `mtSetLO;
+                end
+
+                default: begin
+                    unknownInstruction = 1;
                 end
             endcase
         end
@@ -503,6 +512,9 @@ always @(*) begin
             immediate = bigImm;
         end
 
+        default: begin
+            unknownInstruction = 1;
+        end
     endcase
 end
 
