@@ -8,6 +8,7 @@ module CP0(
            input [31:0] writeData,
            output [31:0] readData,
 
+           input isBD,
            input isException,
            input [4:0] exceptionCause,
            input [31:0] exceptionPC,
@@ -38,6 +39,10 @@ assign readData = registers[number];
 `define BD `Cause[31]
 `define IP `Cause[15:10]
 `define ExcCode `Cause[6:2]
+
+assign BDReg = `BD;
+wire [4:0] ExcCodeReg = `ExcCode;
+wire [31:0] EPCReg = `EPC;
 
 always @(*) begin
     jump = 0;
@@ -74,8 +79,14 @@ always @(posedge clk) begin
                 `EXL <= 0;
             end
             else begin
+                `BD <= isBD;
                 `ExcCode <= exceptionCause;
-                `EPC <= exceptionPC;
+                if (isBD) begin
+                    `EPC <= exceptionPC - 4;
+                end
+                else begin
+                    `EPC <= exceptionPC;
+                end
                 `EXL <= 1;
             end
         end

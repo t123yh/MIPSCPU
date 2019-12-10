@@ -80,7 +80,7 @@ wire [31:0] forwardValueW;
 reg F_jump;
 reg [31:0] F_jumpAddr;
 wire F_stall = stallLevel >= `stallFetch;
-
+reg F_isDelaySlot;
 
 InstructionMemory F_im (
                       .clk(clk),
@@ -101,6 +101,7 @@ wire D_insert_bubble = D_last_bubble || D_data_waiting;
 reg [31:0] D_currentInstruction;
 reg [31:0] D_pc;
 reg D_last_exception;
+reg D_isDelaySlot;
 reg [4:0] D_last_cause;
 
 always @(posedge clk) begin
@@ -108,11 +109,13 @@ always @(posedge clk) begin
         D_last_bubble <= 1;
         D_last_exception <= 0;
         D_pc <= 0;
+        D_isDelaySlot <= 0;
         D_currentInstruction <= 0;
     end
     else begin
         D_last_bubble <= exceptionLevel >= `stallDecode;
         if (!D_stall) begin
+            D_isDelaySlot <= F_isDelaySlot;
             D_last_exception <= F_exception;
             D_last_cause <= F_cause;
             D_currentInstruction <= F_im.instruction;
@@ -210,15 +213,18 @@ Comparator cmp(
 always @(*) begin
     F_jump = 0;
     F_jumpAddr = 0;
+    F_isDelaySlot = 0;
     if (cp0.jump) begin
         F_jump = 1;
         F_jumpAddr = cp0.jumpAddress;
     end
     else if (D_ctrl.branch) begin
+        F_isDelaySlot = 1;
         F_jump = cmp.action;
         F_jumpAddr = D_pc + 4 + (D_ctrl.immediate << 2);
     end
     else if (D_ctrl.absJump) begin
+        F_isDelaySlot = 1;
         F_jump = 1;
         if (D_ctrl.absJumpLoc == `absJumpImmediate) begin
             F_jumpAddr = {D_pc[31:28], D_ctrl.immediate[25:0], 2'b00};
@@ -246,6 +252,8 @@ reg [31:0] E_regWriteData;
 reg E_last_exception;
 reg [4:0] E_last_cause;
 
+reg E_isDelaySlot;
+
 assign forwardValidE = E_regWriteDataValid;
 assign forwardAddressE = E_ctrl.destinationRegister;
 assign forwardValueE = E_regWriteData;
@@ -268,6 +276,7 @@ always @(posedge clk) begin
         E_pc <= 0;
         E_regRead1 <= 0;
         E_regRead2 <= 0;
+        E_isDelaySlot <= 0;
     end
     else begin
         if (!E_stall) begin
@@ -278,6 +287,7 @@ always @(posedge clk) begin
             E_regRead1 <= D_regRead1_forward.value;
             E_regRead2 <= D_regRead2_forward.value;
             E_last_cause <= D_cause;
+            E_isDelaySlot <= D_isDelaySlot;
         end
         else begin
             E_bubble <= E_bubble || exceptionLevel >= `stallExecution;
@@ -400,6 +410,8 @@ reg [31:0] M_regWriteData;
 reg M_last_exception;
 reg [4:0] M_last_cause;
 
+reg M_isDelaySlot;
+
 always @(posedge clk) begin
     if (reset) begin
         M_bubble <= 1;
@@ -412,6 +424,7 @@ always @(posedge clk) begin
         M_regRead2 <= 0;
         M_lastWriteDataValid <= 0;
         M_lastWriteData <= 0;
+        M_isDelaySlot <= 0;
     end
     else begin
         if (!M_stall) begin
@@ -426,6 +439,7 @@ always @(posedge clk) begin
             M_regRead2 <= E_regRead2_forward.value;
             M_lastWriteDataValid <= E_regWriteDataValid;
             M_lastWriteData <= E_regWriteData;
+            M_isDelaySlot <= E_isDelaySlot;
         end
         else begin
             M_bubble <= M_bubble || exceptionLevel >= `stallMemory;
@@ -544,6 +558,7 @@ reg W_last_exception;
 reg [4:0] W_last_cause;
 
 reg W_bubble;
+reg W_isDelaySlot;
 always @(posedge clk) begin
     if (reset) begin
         W_bubble <= 1;
@@ -564,6 +579,7 @@ always @(posedge clk) begin
         W_memData <= M_dm.readData;
         W_lastWriteData <= M_regWriteData;
         W_lastWriteDataValid <= M_regWriteDataValid;
+        W_isDelaySlot <= M_isDelaySlot;
         if (M_exception) begin
             $display("Exception occurred at %h, caused by %d", M_pc, M_cause);
         end
@@ -594,6 +610,7 @@ end
 assign cp0.writeEnable = W_ctrl.writeCP0;
 assign cp0.number = W_ctrl.numberCP0;
 assign cp0.writeData = W_regRead1;
+assign cp0.isBD = W_isDelaySlot;
 
 assign forwardValidW = 1;
 assign forwardAddressW = W_ctrl.destinationRegister;
