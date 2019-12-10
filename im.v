@@ -23,17 +23,19 @@ end
 wire [31:0] realAddress = pc - 32'h3000;
 reg [31:0] pc;
 reg hangState;
-assign outputPC = isHanging ? 0 : pc;
+assign outputPC = hangState ? 0 : pc;
 assign instruction = isHanging ? 0 : memory[realAddress[13:2]];
 assign isHanging = hang || hangState;
 
 always @(*) begin
     exception = 0;
-    if (pc >= 32'h5000 || pc < 32'h3000) begin
-        exception = 1;
-    end
-    if (pc[1:0] != 0) begin
-        exception = 1;
+    if (!hangState) begin
+        if (pc >= 32'h5000 || pc < 32'h3000) begin
+            exception = 1;
+        end
+        if (pc[1:0] != 0) begin
+            exception = 1;
+        end
     end
 end
 
