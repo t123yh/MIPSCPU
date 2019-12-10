@@ -530,6 +530,7 @@ end
 reg [31:0] W_currentInstruction;
 reg [31:0] W_memData;
 reg [31:0] W_aluOutput;
+reg [31:0] W_regRead1;
 
 reg W_lastWriteDataValid;
 reg [31:0] W_lastWriteData;
@@ -549,6 +550,7 @@ always @(posedge clk) begin
         W_last_exception <= 0;
     end
     else begin
+        W_regRead1 <= M_regRead1_forward.value;
         W_bubble <= M_insert_bubble;
         W_currentInstruction <= M_currentInstruction;
         W_pc <= M_pc;
@@ -576,6 +578,9 @@ Controller W_ctrl(
                .debugPC(W_pc)
            );
 
+assign cp0.writeEnable = W_ctrl.writeCP0;
+assign cp0.number = W_ctrl.numberCP0;
+assign cp0.writeData = W_regRead1;
 
 assign forwardValidW = 1;
 assign forwardAddressW = W_ctrl.destinationRegister;
@@ -591,6 +596,9 @@ always @(*) begin
         case (W_ctrl.grfWriteSource)
             `grfWriteMem: begin
                 grfWriteData = W_memData;
+            end
+            `grfWriteCP0: begin
+                grfWriteData = cp0.readData;
             end
         endcase
     end
