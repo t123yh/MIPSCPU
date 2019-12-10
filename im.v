@@ -4,21 +4,28 @@ module InstructionMemory(
            input reset,
            input absJump,
            input pcStall,
+           input hang,
            input [31:0] absJumpAddress, // In bytes
-           output reg [31:0] pc,
+           output [31:0] outputPC,
            output [31:0] instruction,
            output reg exception
        );
 
 
 reg [31:0] memory [4095:0];
+wire isHanging;
 
 initial begin
     $readmemh("code.txt", memory);
+    $readmemh("code_handler.txt", memory, 1120, 2047);
 end
 
 wire [31:0] realAddress = pc - 32'h3000;
-assign instruction = memory[realAddress[13:2]];
+reg [31:0] pc;
+reg hangState;
+assign outputPC = isHanging ? 0 : pc;
+assign instruction = isHanging ? 0 : memory[realAddress[13:2]];
+assign isHanging = hang || hangState;
 
 always @(*) begin
     exception = 0;
@@ -37,22 +44,23 @@ always @(posedge clk) begin
     if (reset)
     begin
         pc <= 32'h3000;
-    end
-    else if (pcStall) begin
-`ifdef VERBOSE
-        $display("Stalled, no instruction.");
-`endif
-
-    end
-    else if (absJump) begin
-`ifdef VERBOSE
-        $display("Jump to %h", absJumpAddress);
-`endif
-
-        pc <= absJumpAddress;
+        hangState <= 0;
     end
     else begin
-        pc <= pc + 4;
+        if (pcStall) begin
+        end
+        else if (absJump) begin
+            hangState <= 0;
+            pc <= absJumpAddress;
+        end
+        else begin
+            if (hang) begin
+                hangState <= 1;
+            end
+            if (!isHanging) begin
+                pc <= pc + 4;
+            end
+        end
     end
 end
 
