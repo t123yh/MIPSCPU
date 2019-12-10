@@ -30,7 +30,7 @@ module Controller (
            output reg absJumpLoc, // 1 = immediate, 0 = register
            output reg [3:0] grfWriteSource,
            output reg checkOverflow,
-           output reg unknownInstruction,
+           output reg [2:0] generateException,
            output reg bye
        );
 
@@ -72,6 +72,7 @@ localparam lhu = 6'b100101;
 localparam sb = 6'b101000;
 localparam sh = 6'b101001;
 localparam special2 = 6'b011100;
+localparam cop0 = 6'b010000;
 
 localparam addu = 6'b100001;
 localparam add = 6'b100000;
@@ -99,6 +100,7 @@ localparam mtlo = 6'b010011;
 localparam msub = 6'b000100;
 localparam madd = 6'b000000;
 localparam maddu = 6'b000001;
+localparam eret = 6'b011000;
 
 localparam slt = 6'b101010;
 localparam sltu = 6'b101011;
@@ -204,7 +206,7 @@ always @(*) begin
     checkOverflow = 0;
     mulOutputSel = 'bx;
     mulCtrl = `mtDisabled;
-    unknownInstruction = 0;
+    generateException = `ctrlNoException;
 `ifdef DEBUG
 
     immediate = 'bx;
@@ -216,6 +218,16 @@ always @(*) begin
 
     if (!reset && !bubble)
     case (opcode)
+        cop0: begin
+            case (funct)
+                eret: begin
+                    generateException = `ctrlERET;
+                end
+                default: begin
+                    generateException = `ctrlUnknownInstruction;
+                end
+            endcase
+        end
         special2: begin
             case (funct)
                 msub: begin
@@ -231,7 +243,7 @@ always @(*) begin
                     mulCtrl = `mtMADDU;
                 end
                 default: begin
-                    unknownInstruction = 1;
+                    generateException = `ctrlUnknownInstruction;
                 end
             endcase
         end
@@ -370,7 +382,7 @@ always @(*) begin
                 end
 
                 default: begin
-                    unknownInstruction = 1;
+                    generateException = `ctrlUnknownInstruction;
                 end
             endcase
         end
@@ -513,7 +525,7 @@ always @(*) begin
         end
 
         default: begin
-            unknownInstruction = 1;
+            generateException = `ctrlUnknownInstruction;
         end
     endcase
 end

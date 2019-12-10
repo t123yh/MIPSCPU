@@ -55,3 +55,13 @@
 `define mtMSUB 7
 `define mtMADD 8
 `define mtMADDU 9
+
+`define ctrlNoException 0
+`define ctrlUnknownInstruction 1
+`define ctrlERET 2
+
+`define causeERET 16
+`define causeAdEL 4
+`define causeAdES 5
+`define causeRI 10
+`define causeOv 12

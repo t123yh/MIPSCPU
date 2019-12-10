@@ -22,6 +22,33 @@ always @(*) begin
     end
 end
 
+reg [2:0] exceptionLevel;
+wire F_exception;
+reg D_exception;
+reg E_exception;
+reg M_exception;
+
+always @(*) begin
+    exceptionLevel = `stallNone;
+    if (F_exception) begin
+        exceptionLevel = `stallFetch;
+    end
+    if (D_exception) begin
+        exceptionLevel = `stallDecode;
+    end
+    if (E_exception) begin
+        exceptionLevel = `stallExecution;
+    end
+    if (M_exception) begin
+        exceptionLevel = `stallMemory;
+    end
+end
+
+CP0 cp0(
+    .clk(clk),
+    .reset(reset)
+);
+
 // Forwarding logic:
 // If forward source is non-zero, it means that a value to be written is already in the pipeline
 // which is either available or non-available.
@@ -54,8 +81,12 @@ InstructionMemory F_im (
                       .reset(reset),
                       .absJump(F_jump),
                       .absJumpAddress(F_jumpAddr),
-                      .pcStall(F_stall)
+                      .pcStall(F_stall),
+                      .hang(exceptionLevel >= `stallFetch)
                   );
+
+assign F_exception = F_im.exception;
+wire [4:0] F_cause = F_im.exception ? `causeAdEL : 'bx;
 
 // ======== Decode Stage ========
 wire D_stall = stallLevel >= `stallDecode;
@@ -63,17 +94,24 @@ reg D_last_bubble;
 wire D_insert_bubble = D_last_bubble || D_data_waiting;
 reg [31:0] D_currentInstruction;
 reg [31:0] D_pc;
+reg D_last_exception;
+reg [4:0] D_last_cause;
 
 always @(posedge clk) begin
     if (reset) begin
         D_last_bubble <= 1;
+        D_last_exception <= 0;
+        D_pc <= 0;
+        D_currentInstruction <= 0;
     end
     else begin
-        D_last_bubble <= 0;
-    end
-    if (!D_stall) begin
-        D_currentInstruction <= F_im.instruction;
-        D_pc <= F_im.pc;
+        D_last_bubble <= exceptionLevel >= `stallDecode;
+        if (!D_stall) begin
+            D_last_exception <= F_exception;
+            D_last_cause <= F_cause;
+            D_currentInstruction <= F_im.instruction;
+            D_pc <= F_im.outputPC;
+        end
     end
 end
 
@@ -81,9 +119,31 @@ Controller D_ctrl(
                .instruction(D_currentInstruction),
                .reset(reset),
                .currentStage(`stageD),
-               .bubble(D_last_bubble),
+               .bubble(D_last_bubble || D_last_exception),
                .debugPC(D_pc)
            );
+
+reg [4:0] D_cause;
+always @(*) begin
+    D_cause = 'bx;
+    D_exception = 0;
+    if (D_last_exception) begin
+        D_cause = D_last_cause;
+        D_exception = 1;
+    end
+    else begin
+        case (D_ctrl.generateException) 
+            `ctrlUnknownInstruction: begin
+                D_cause = `causeRI;
+                D_exception = 1;
+            end
+            `ctrlERET: begin
+                D_cause = `causeERET;
+                D_exception = 1;
+            end
+        endcase
+    end
+end
 
 reg [4:0] grfWriteAddress;
 reg [31:0] grfWriteData;
@@ -144,7 +204,11 @@ Comparator cmp(
 always @(*) begin
     F_jump = 0;
     F_jumpAddr = 0;
-    if (D_ctrl.branch) begin
+    if (cp0.jump) begin
+        F_jump = 1;
+        F_jumpAddr = cp0.jumpAddress;
+    end
+    else if (D_ctrl.branch) begin
         F_jump = cmp.action;
         F_jumpAddr = D_pc + 4 + (D_ctrl.immediate << 2);
     end
@@ -173,6 +237,9 @@ reg [31:0] E_regRead2;
 reg E_regWriteDataValid;
 reg [31:0] E_regWriteData;
 
+reg E_last_exception;
+reg [4:0] E_last_cause;
+
 assign forwardValidE = E_regWriteDataValid;
 assign forwardAddressE = E_ctrl.destinationRegister;
 assign forwardValueE = E_regWriteData;
@@ -189,21 +256,28 @@ always @(*) begin
 end
 
 always @(posedge clk) begin
-    if (!E_stall) begin
-        if (reset) begin
-            E_bubble <= 1;
-        end
-        else begin
-            E_bubble <= D_insert_bubble;
-        end
-        E_currentInstruction <= D_currentInstruction;
-        E_pc <= D_pc;
-        E_regRead1 <= D_regRead1_forward.value;
-        E_regRead2 <= D_regRead2_forward.value;
+    if (reset) begin
+        E_bubble <= 1;
+        E_last_exception <= 0;
+        E_pc <= 0;
+        E_regRead1 <= 0;
+        E_regRead2 <= 0;
     end
     else begin
-        E_regRead1 <= E_regRead1_forward.value;
-        E_regRead2 <= E_regRead2_forward.value;
+        if (!E_stall) begin
+            E_last_exception <= D_exception;
+            E_bubble <= D_insert_bubble || exceptionLevel >= `stallExecution;
+            E_currentInstruction <= D_currentInstruction;
+            E_pc <= D_pc;
+            E_regRead1 <= D_regRead1_forward.value;
+            E_regRead2 <= D_regRead2_forward.value;
+            E_last_cause <= D_cause;
+        end
+        else begin
+            E_bubble <= E_bubble || exceptionLevel >= `stallExecution;
+            E_regRead1 <= E_regRead1_forward.value;
+            E_regRead2 <= E_regRead2_forward.value;
+        end
     end
 end
 
@@ -211,9 +285,10 @@ Controller E_ctrl(
                .instruction(E_currentInstruction),
                .reset(reset),
                .currentStage(`stageE),
-               .bubble(E_bubble),
+               .bubble(E_bubble || E_last_exception),
                .debugPC(E_pc)
            );
+
 
 ForwardController E_regRead1_forward (
                       .request(E_ctrl.regRead1),
@@ -257,6 +332,20 @@ ArithmeticLogicUnit E_alu(
                         .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_regRead2_forward.value)
                     );
 
+reg [4:0] E_cause;
+always @(*) begin
+    E_cause = 'bx;
+    E_exception = 0;
+    if (E_last_exception) begin
+        E_cause = E_last_cause;
+        E_exception = 1;
+    end
+    else if (E_ctrl.checkOverflow && E_alu.overflow) begin
+        E_cause = `causeOv;
+        E_exception = 1;
+    end
+end
+
 reg E_mul_collision;
 assign E_data_waiting = E_regRead1_forward.stallExec || E_regRead2_forward.stallExec || E_mul_collision;
 reg E_mulStart;
@@ -268,7 +357,7 @@ always @(*) begin
         if (E_mul.busy) begin
             E_mul_collision = 1;
         end
-        else if (E_ctrl.mulEnable) begin
+        else if (E_ctrl.mulEnable && !M_exception) begin
             E_mulStart = 1;
         end
     end
@@ -302,27 +391,41 @@ reg [31:0] M_lastWriteData;
 
 reg M_regWriteDataValid;
 reg [31:0] M_regWriteData;
+reg M_last_exception;
+reg [4:0] M_last_cause;
 
 always @(posedge clk) begin
-    if (!M_stall) begin
-        if (reset) begin
-            M_bubble <= 1;
-        end
-        else begin
-            M_bubble <= E_insert_bubble;
-        end
-        M_currentInstruction <= E_currentInstruction;
-        M_pc <= E_pc;
-        M_aluOutput <= E_alu.out;
-        M_mulOutput <= E_mul_value;
-        M_regRead1 <= E_regRead1_forward.value;
-        M_regRead2 <= E_regRead2_forward.value;
-        M_lastWriteDataValid <= E_regWriteDataValid;
-        M_lastWriteData <= E_regWriteData;
+    if (reset) begin
+        M_bubble <= 1;
+        M_last_exception <= 0;
+        M_currentInstruction <= 0;
+        M_pc <= 0;
+        M_aluOutput <= 0;
+        M_mulOutput <= 0;
+        M_regRead1 <= 0;
+        M_regRead2 <= 0;
+        M_lastWriteDataValid <= 0;
+        M_lastWriteData <= 0;
     end
     else begin
-        M_regRead1 <= M_regRead1_forward.value;
-        M_regRead2 <= M_regRead2_forward.value;
+        if (!M_stall) begin
+            M_bubble <= E_insert_bubble || exceptionLevel >= `stallMemory;
+            M_last_exception <= E_exception;
+            M_last_cause <= E_cause;
+            M_currentInstruction <= E_currentInstruction;
+            M_pc <= E_pc;
+            M_aluOutput <= E_alu.out;
+            M_mulOutput <= E_mul_value;
+            M_regRead1 <= E_regRead1_forward.value;
+            M_regRead2 <= E_regRead2_forward.value;
+            M_lastWriteDataValid <= E_regWriteDataValid;
+            M_lastWriteData <= E_regWriteData;
+        end
+        else begin
+            M_bubble <= M_bubble || exceptionLevel >= `stallMemory;
+            M_regRead1 <= M_regRead1_forward.value;
+            M_regRead2 <= M_regRead2_forward.value;
+        end
     end
 end
 
@@ -354,7 +457,7 @@ Controller M_ctrl(
                .instruction(M_currentInstruction),
                .reset(reset),
                .currentStage(`stageM),
-               .bubble(M_bubble),
+               .bubble(M_bubble || M_last_exception),
                .debugPC(M_pc)
            );
 
@@ -402,6 +505,25 @@ DataMemory M_dm(
                .writeDataIn(M_regRead2_forward.value) // register@regRead2
            );
 
+reg [4:0] M_cause;
+always @(*) begin
+    M_exception = 0;
+    M_cause = 'bx;
+    if (M_last_exception) begin
+        M_exception = 1;
+        M_cause = M_last_cause;
+    end
+    else if (M_dm.exception) begin
+        M_exception = 1;
+        if (M_ctrl.memLoad) begin
+            M_cause = `causeAdEL;
+        end
+        else if (M_ctrl.memStore) begin
+            M_cause = `causeAdES;
+        end
+    end
+end
+
 
 // ======== WriteBack Stage ========
 
@@ -411,30 +533,49 @@ reg [31:0] W_aluOutput;
 
 reg W_lastWriteDataValid;
 reg [31:0] W_lastWriteData;
+reg W_last_exception;
+reg [4:0] W_last_cause;
 
 reg W_bubble;
 always @(posedge clk) begin
     if (reset) begin
         W_bubble <= 1;
+        W_currentInstruction <= 0;
+        W_pc <= 0;
+        W_aluOutput <= 0;
+        W_memData <= 0;
+        W_lastWriteData <= 0;
+        W_lastWriteDataValid <= 0;
+        W_last_exception <= 0;
     end
     else begin
         W_bubble <= M_insert_bubble;
+        W_currentInstruction <= M_currentInstruction;
+        W_pc <= M_pc;
+        W_aluOutput <= M_aluOutput;
+        W_memData <= M_dm.readData;
+        W_lastWriteData <= M_regWriteData;
+        W_lastWriteDataValid <= M_regWriteDataValid;
+        if (M_exception) begin
+            $display("Exception occurred at %h, caused by %d", M_pc, M_cause);
+        end
+        W_last_exception <= M_exception;
+        W_last_cause <= M_cause;
     end
-    W_currentInstruction <= M_currentInstruction;
-    W_pc <= M_pc;
-    W_aluOutput <= M_aluOutput;
-    W_memData <= M_dm.readData;
-    W_lastWriteData <= M_regWriteData;
-    W_lastWriteDataValid <= M_regWriteDataValid;
 end
+
+assign cp0.isException = W_last_exception;
+assign cp0.exceptionPC = W_pc;
+assign cp0.exceptionCause = W_last_cause;
 
 Controller W_ctrl(
                .instruction(W_currentInstruction),
                .reset(reset),
                .currentStage(`stageW),
-               .bubble(W_bubble),
+               .bubble(W_bubble || W_last_exception),
                .debugPC(W_pc)
            );
+
 
 assign forwardValidW = 1;
 assign forwardAddressW = W_ctrl.destinationRegister;
