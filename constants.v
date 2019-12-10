@@ -40,6 +40,7 @@
 `define stallDecode 2
 `define stallExecution 3
 `define stallMemory 4
+`define stallWriteBack 5
 
 `define stageD 3'd1
 `define stageE 3'd2

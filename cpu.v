@@ -1,7 +1,9 @@
 `include "constants.v"
 module CPU (
            input clk,
-           input reset
+           input reset,
+           input interrupt,
+           output reg [31:0] effectivePC
        );
 
 reg [31:0] W_pc;
@@ -27,6 +29,7 @@ wire F_exception;
 reg D_exception;
 reg E_exception;
 reg M_exception;
+wire W_exception;
 
 always @(*) begin
     exceptionLevel = `stallNone;
@@ -42,12 +45,15 @@ always @(*) begin
     if (M_exception) begin
         exceptionLevel = `stallMemory;
     end
+    if (W_exception) begin
+        exceptionLevel = `stallWriteBack;
+    end
 end
 
 CP0 cp0(
-    .clk(clk),
-    .reset(reset)
-);
+        .clk(clk),
+        .reset(reset)
+    );
 
 // Forwarding logic:
 // If forward source is non-zero, it means that a value to be written is already in the pipeline
@@ -132,7 +138,7 @@ always @(*) begin
         D_exception = 1;
     end
     else begin
-        case (D_ctrl.generateException) 
+        case (D_ctrl.generateException)
             `ctrlUnknownInstruction: begin
                 D_cause = `causeRI;
                 D_exception = 1;
@@ -567,6 +573,7 @@ always @(posedge clk) begin
 end
 
 assign cp0.isException = W_last_exception;
+assign W_exception = W_last_exception;
 assign cp0.exceptionPC = W_pc;
 assign cp0.exceptionCause = W_last_cause;
 
@@ -577,6 +584,12 @@ Controller W_ctrl(
                .bubble(W_bubble || W_last_exception),
                .debugPC(W_pc)
            );
+
+always @(posedge clk) begin
+    if (!W_bubble && (!cp0.isException || (cp0.isException && cp0.exceptionCause == `causeERET))) begin
+        effectivePC <= W_pc;
+    end
+end
 
 assign cp0.writeEnable = W_ctrl.writeCP0;
 assign cp0.number = W_ctrl.numberCP0;
