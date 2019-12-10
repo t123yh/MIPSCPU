@@ -4,7 +4,7 @@ module CP0(
            input clk,
            input reset,
            input writeEnable,
-           input [4:0] writeNumber,
+           input [4:0] number,
            input [31:0] writeData,
            output [31:0] readData,
 
@@ -18,17 +18,26 @@ module CP0(
 
 wire [31:0] exceptionHandler = 32'h00004180;
 
-reg [7:2] IM;
-reg EXL;
-reg IE;
+reg [31:0] registers [15:0];
 
-reg BD;
-reg [7:2] IP;
-reg [4:0] ExcCode;
+always @(posedge clk) begin
+    if (writeEnable) begin
+        registers[number] <= writeData;
+    end
+end
 
-reg [31:0] EPC;
+assign readData = registers[number];
 
-wire [31:0] PrId = 32'hDEADBEEF;
+`define EPC registers[14]
+`define PrId registers[15]
+`define SR registers[12]
+`define EXL `SR[1]
+`define IE `SR[0]
+`define IM `SR[15:10]
+`define Cause registers[13]
+`define BD `Cause[31]
+`define IP `Cause[15:10]
+`define ExcCode `Cause[6:2]
 
 always @(*) begin
     jump = 0;
@@ -40,27 +49,28 @@ always @(*) begin
         end
         else begin
             jump = 1;
-            jumpAddress = EPC;
+            jumpAddress = `EPC;
         end
     end
 end
 
 always @(posedge clk) begin
     if (reset) begin
-        IM = 0;
-        EXL = 0;
-        IE = 1;
-        IP = 0;
+        `EPC <= 0;
+        `PrId <= 32'hDEADBEEF;
+        `IE <= 1;
+        `EXL <= 0;
+        `IM <= 6'b111111;
     end
     else begin
         if (isException) begin
             if (exceptionCause == `causeERET) begin
-                EXL <= 0;
+                `EXL <= 0;
             end
             else begin
-                ExcCode <= exceptionCause;
-                EPC <= exceptionPC;
-                EXL <= 1;
+                `ExcCode <= exceptionCause;
+                `EPC <= exceptionPC;
+                `EXL <= 1;
             end
         end
     end

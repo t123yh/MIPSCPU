@@ -31,6 +31,8 @@ module Controller (
            output reg [3:0] grfWriteSource,
            output reg checkOverflow,
            output reg [2:0] generateException,
+           output reg writeCP0,
+           output reg [4:0] numberCP0,
            output reg bye
        );
 
@@ -102,6 +104,9 @@ localparam madd = 6'b000000;
 localparam maddu = 6'b000001;
 localparam eret = 6'b011000;
 
+localparam mfc0 = 5'b00000;
+localparam mtc0 = 5'b00100;
+
 localparam slt = 6'b101010;
 localparam sltu = 6'b101011;
 localparam slti = 6'b001010;
@@ -131,6 +136,11 @@ always @(*) begin
     else if (currentStage == `stageM) begin
         if (memStore) begin
             regRead2Required = 1;
+        end
+    end
+    else if (currentStage == `stageW) begin
+        if (writeCP0) begin
+            regRead1Required = 1;
         end
     end
 end
@@ -207,6 +217,8 @@ always @(*) begin
     mulOutputSel = 'bx;
     mulCtrl = `mtDisabled;
     generateException = `ctrlNoException;
+    writeCP0 = 0;
+    numberCP0 = 0;
 `ifdef DEBUG
 
     immediate = 'bx;
@@ -220,6 +232,20 @@ always @(*) begin
     case (opcode)
         cop0: begin
             case (funct)
+                6'b000000: begin
+                    case (rsi)
+                        mfc0: begin
+                            destinationRegister = rti;
+                            grfWriteSource = `grfWriteCP0;
+                            numberCP0 = rdi;
+                        end
+                        mtc0: begin
+                            regRead1 = rti;
+                            writeCP0 = 1;
+                            numberCP0 = rdi;
+                        end
+                    endcase
+                end
                 eret: begin
                     generateException = `ctrlERET;
                 end
