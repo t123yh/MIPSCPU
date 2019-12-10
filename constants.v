@@ -62,6 +62,7 @@
 `define ctrlUnknownInstruction 1
 `define ctrlERET 2
 
+`define causeInt 0
 `define causeERET 16
 `define causeAdEL 4
 `define causeAdES 5

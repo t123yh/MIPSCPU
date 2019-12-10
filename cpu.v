@@ -2,7 +2,7 @@
 module CPU (
            input clk,
            input reset,
-           input interrupt,
+           input [5:0] irq,
            output reg [31:0] effectivePC
        );
 
@@ -52,7 +52,9 @@ end
 
 CP0 cp0(
         .clk(clk),
-        .reset(reset)
+        .reset(reset),
+        .externalInterrupt(irq),
+        .hasExceptionInPipeline(exceptionLevel != `stallNone)
     );
 
 // Forwarding logic:
@@ -114,13 +116,21 @@ always @(posedge clk) begin
     end
     else begin
         D_last_bubble <= exceptionLevel >= `stallDecode;
-        if (!D_stall) begin
-            D_isDelaySlot <= F_isDelaySlot;
-            D_last_exception <= F_exception;
-            D_last_cause <= F_cause;
-            D_currentInstruction <= F_im.instruction;
+        if (cp0.interruptNow) begin
+            D_last_exception <= 1;
+            D_last_cause <= `causeInt;
             D_pc <= F_im.outputPC;
+            D_isDelaySlot <= F_isDelaySlot;
+            D_currentInstruction <= F_im.instruction;
         end
+        else
+            if (!D_stall) begin
+                D_isDelaySlot <= F_isDelaySlot;
+                D_last_exception <= F_exception;
+                D_last_cause <= F_cause;
+                D_currentInstruction <= F_im.instruction;
+                D_pc <= F_im.outputPC;
+            end
     end
 end
 
@@ -281,12 +291,12 @@ always @(posedge clk) begin
     else begin
         if (!E_stall) begin
             E_last_exception <= D_exception;
+            E_last_cause <= D_cause;
             E_bubble <= D_insert_bubble || exceptionLevel >= `stallExecution;
             E_currentInstruction <= D_currentInstruction;
             E_pc <= D_pc;
             E_regRead1 <= D_regRead1_forward.value;
             E_regRead2 <= D_regRead2_forward.value;
-            E_last_cause <= D_cause;
             E_isDelaySlot <= D_isDelaySlot;
         end
         else begin

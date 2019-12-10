@@ -8,13 +8,18 @@ module CP0(
            input [31:0] writeData,
            output [31:0] readData,
 
+           input hasExceptionInPipeline,
+
            input isBD,
            input isException,
            input [4:0] exceptionCause,
            input [31:0] exceptionPC,
 
            output reg jump,
-           output reg [31:0] jumpAddress
+           output reg [31:0] jumpAddress,
+
+           output interruptNow,
+           input [15:10] externalInterrupt
        );
 
 wire [31:0] exceptionHandler = 32'h00004180;
@@ -41,6 +46,7 @@ assign readData = registers[number];
 `define ExcCode `Cause[6:2]
 
 assign BDReg = `BD;
+wire EXLReg = `EXL;
 wire [4:0] ExcCodeReg = `ExcCode;
 wire [31:0] EPCReg = `EPC;
 
@@ -48,13 +54,17 @@ always @(*) begin
     jump = 0;
     jumpAddress = 'bx;
     if (isException) begin
-        if (exceptionCause != `causeERET) begin
-            jump = 1;
-            jumpAddress = exceptionHandler;
+        if (`EXL) begin
+            if (exceptionCause == `causeERET) begin
+                jump = 1;
+                jumpAddress = `EPC;
+            end
         end
         else begin
-            jump = 1;
-            jumpAddress = `EPC;
+            if (exceptionCause != `causeERET) begin
+                jump = 1;
+                jumpAddress = exceptionHandler;
+            end
         end
     end
 end
@@ -65,29 +75,41 @@ initial begin
     end
 end
 
+reg [15:10] interruptSource;
+wire interruptEnabled = `IE && !`EXL && !hasExceptionInPipeline;
+wire [15:10] unmaskedInterrupt = interruptEnabled ? (interruptSource & `IM) : 0;
+wire hasInterrupt = | unmaskedInterrupt;
+
+assign interruptNow = hasInterrupt;
 always @(posedge clk) begin
     if (reset) begin
         `EPC <= 0;
         `PrId <= 32'hDEADBEEF;
-        `IE <= 1;
-        `EXL <= 0;
+        `IE <= 0;
+        `EXL <= 1;
         `IM <= 6'b111111;
+        interruptSource <= 0;
     end
     else begin
+        interruptSource <= externalInterrupt;
         if (isException) begin
-            if (exceptionCause == `causeERET) begin
-                `EXL <= 0;
+            if (`EXL) begin
+                if (exceptionCause == `causeERET) begin
+                    `EXL <= 0;
+                end
             end
             else begin
-                `BD <= isBD;
-                `ExcCode <= exceptionCause;
-                if (isBD) begin
-                    `EPC <= exceptionPC - 4;
+                if (exceptionCause != `causeERET) begin
+                    `BD <= isBD;
+                    `ExcCode <= exceptionCause;
+                    if (isBD) begin
+                        `EPC <= exceptionPC - 4;
+                    end
+                    else begin
+                        `EPC <= exceptionPC;
+                    end
+                    `EXL <= 1;
                 end
-                else begin
-                    `EPC <= exceptionPC;
-                end
-                `EXL <= 1;
             end
         end
     end
