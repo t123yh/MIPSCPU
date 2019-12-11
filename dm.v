@@ -10,12 +10,24 @@ module DataMemory(
            input [31:0] writeDataIn,
            output reg [31:0] readData,
            input [31:0] debugPC,
-           output reg exception
+           output reg exception,
+
+           output sb_WriteEnable,
+           output sb_ReadEnable,
+           output [31:0] sb_Address,
+           output [31:0] sb_DataIn,
+           input [31:0] sb_DataOut,
+           input sb_exception
        );
 
-reg chipSelect_RAM;
+reg chipSelect_RAM, chipSelect_SB;
 reg [31:0] readWord;
 reg [31:0] writeWord;
+
+assign sb_WriteEnable = chipSelect_SB && writeEnable;
+assign sb_ReadEnable = chipSelect_SB;
+assign sb_Address = address;
+assign sb_DataIn = writeDataIn;
 
 RAM ram(
         .clk(clk),
@@ -28,22 +40,14 @@ RAM ram(
 
 reg [15:0] halfWord;
 reg [7:0] byte;
-reg alignException;
 always @(*) begin
-    alignException = 0;
     readData = 0;
     writeWord = 0;
     if (widthCtrl == `memWidth4) begin
-        if (address[1:0] != 0) begin
-            alignException = 1;
-        end
         readData = readWord;
         writeWord = writeDataIn;
     end
     else if (widthCtrl == `memWidth2) begin
-        if (address[0] != 0) begin
-            alignException = 1;
-        end
         if (address[1]) begin
             halfWord = readWord[31:16];
             writeWord = {writeDataIn[15:0], readWord[15:0]};
@@ -88,10 +92,38 @@ end
 reg addressException;
 always @(*) begin
     chipSelect_RAM = 0;
-    addressException = 1;
+    chipSelect_SB = 0;
+    addressException = 0;
     if (address < 16'h3000) begin
-        chipSelect_RAM = 1;
-        addressException = 0;
+        if (widthCtrl == `memWidth4) begin
+            if (address[1:0] != 0) begin
+                addressException = 1;
+            end
+        end
+        else if (widthCtrl == `memWidth2) begin
+            if (address[0] != 0) begin
+                addressException = 1;
+            end
+        end
+        if (!addressException) begin
+            chipSelect_RAM = 1;
+        end
+    end
+    else if (address >= 16'h7F00 && address < 16'h7F20) begin
+        if (widthCtrl == `memWidth4) begin
+            if (address[1:0] != 0) begin
+                addressException = 1;
+            end
+        end
+        else begin
+            addressException = 1;
+        end
+        if (!addressException) begin
+            chipSelect_SB = 1;
+        end
+    end
+    else begin
+        addressException = 1;
     end
 end
 
@@ -100,12 +132,15 @@ always @(*) begin
     if(chipSelect_RAM) begin
         readWord = ram.readData;
     end
+    else begin
+        readWord = sb_DataOut;
+    end
 end
 
 always @(*) begin
     exception = 0;
     if (readEnable || writeEnable) begin
-        exception = alignException || addressException || (chipSelect_RAM && ram.exception);
+        exception = addressException || (chipSelect_RAM && ram.exception) || (chipSelect_SB && sb_exception);
     end
 end
 

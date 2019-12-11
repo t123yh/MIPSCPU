@@ -3,7 +3,14 @@ module CPU (
            input clk,
            input reset,
            input [5:0] irq,
-           output reg [31:0] effectivePC
+           output reg [31:0] effectivePC,
+
+           output sb_WriteEnable,
+           output sb_ReadEnable,
+           output [31:0] sb_Address,
+           output [31:0] sb_DataIn,
+           input [31:0] sb_DataOut,
+           input sb_exception
        );
 
 reg [31:0] W_pc;
@@ -527,6 +534,14 @@ DataMemory M_dm(
                .clk(clk),
                .reset(reset),
                .debugPC(M_pc),
+
+               .sb_Address(sb_Address),
+               .sb_DataIn(sb_DataIn),
+               .sb_DataOut(sb_DataOut),
+               .sb_ReadEnable(sb_ReadEnable),
+               .sb_WriteEnable(sb_WriteEnable),
+               .sb_exception(sb_exception),
+
                .readEnable(!M_data_waiting && M_ctrl.memLoad),
                .writeEnable(!M_data_waiting && M_ctrl.memStore),
                .widthCtrl(M_ctrl.memWidthCtrl),
