@@ -1,7 +1,8 @@
 module mips(
     input clk,
     input reset,
-    input interrupt
+    input interrupt,
+    output [31:0] addr
 );
 
 TC tc0(
@@ -39,7 +40,8 @@ SystemBridge sb(
 CPU cpu(
         .clk(clk),
         .reset(reset),
-        .irq({3'b0, interrupt, tc1.IRQ, tc0.IRQ})
+        .irq({3'b0, interrupt, tc1.IRQ, tc0.IRQ}),
+        .effectivePC(addr)
     );
 
 endmodule
