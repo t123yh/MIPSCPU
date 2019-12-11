@@ -122,13 +122,21 @@ always @(posedge clk) begin
         D_currentInstruction <= 0;
     end
     else begin
-        D_last_bubble <= exceptionLevel >= `stallDecode;
-        if (!D_stall) begin
-            D_isDelaySlot <= F_isDelaySlot;
-            D_last_exception <= F_exception;
-            D_last_cause <= F_cause;
-            D_currentInstruction <= F_im.instruction;
-            D_pc <= F_im.outputPC;
+        if (cp0.interruptNow) begin
+            D_last_bubble <= 1;
+            D_last_exception <= 0;
+            D_pc <= 0;
+            D_isDelaySlot <= 0;
+        end
+        else begin
+            D_last_bubble <= exceptionLevel >= `stallDecode;
+            if (!D_stall) begin
+                D_isDelaySlot <= F_isDelaySlot;
+                D_last_exception <= F_exception;
+                D_last_cause <= F_cause;
+                D_currentInstruction <= F_im.instruction;
+                D_pc <= F_im.outputPC;
+            end
         end
     end
 end
@@ -291,7 +299,13 @@ always @(posedge clk) begin
         E_isDelaySlot <= 0;
     end
     else begin
-        if (!E_stall) begin
+        if (cp0.interruptNow) begin
+            E_bubble <= 1;
+            E_last_exception <= 0;
+            E_pc <= 0;
+            E_isDelaySlot <= 0;
+        end
+        else if (!E_stall) begin
             E_last_exception <= D_exception;
             E_last_cause <= D_cause;
             E_bubble <= D_insert_bubble || exceptionLevel >= `stallExecution;
