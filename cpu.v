@@ -151,7 +151,10 @@ reg [4:0] D_cause;
 always @(*) begin
     D_cause = 'bx;
     D_exception = 0;
-    if (D_last_exception) begin
+    if (D_last_bubble) begin
+        D_exception = 0;
+    end
+    else if (D_last_exception) begin
         D_cause = D_last_cause;
         D_exception = 1;
     end
@@ -377,7 +380,10 @@ reg [4:0] E_cause;
 always @(*) begin
     E_cause = 'bx;
     E_exception = 0;
-    if (E_last_exception) begin
+    if (E_bubble) begin
+        E_exception = 0;
+    end
+    else if (E_last_exception) begin
         E_cause = E_last_cause;
         E_exception = 1;
     end
@@ -562,7 +568,10 @@ reg [4:0] M_cause;
 always @(*) begin
     M_exception = 0;
     M_cause = 'bx;
-    if (M_last_exception) begin
+    if (M_bubble) begin
+        M_exception = 0;
+    end
+    else  if (M_last_exception) begin
         M_exception = 1;
         M_cause = M_last_cause;
     end
