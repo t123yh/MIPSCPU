@@ -10,37 +10,47 @@ module DataMemory(
            input [31:0] writeDataIn,
            output reg [31:0] readData,
            input [31:0] debugPC,
-           output exception
+           output reg exception
        );
 
-reg [31:0] memory [4095:0];
+reg chipSelect_RAM;
+reg [31:0] readWord;
+reg [31:0] writeWord;
 
-wire [11:0] realAddress = address[13:2];
+RAM ram(
+        .clk(clk),
+        .reset(reset),
+        .address(address[13:0]),
+        .readEnable(chipSelect_RAM),
+        .writeEnable(chipSelect_RAM && writeEnable),
+        .writeDataIn(writeWord)
+    );
+
 reg [15:0] halfWord;
 reg [7:0] byte;
-reg addressException;
-assign exception = (readEnable || writeEnable) && addressException;
+reg alignException;
 always @(*) begin
-    addressException = 0;
+    alignException = 0;
     readData = 0;
-    if (memory[realAddress] >= 32'h3000) begin
-        addressException = 1;
-    end
+    writeWord = 0;
     if (widthCtrl == `memWidth4) begin
         if (address[1:0] != 0) begin
-            addressException = 1;
+            alignException = 1;
         end
-        readData = memory[realAddress];
+        readData = readWord;
+        writeWord = writeDataIn;
     end
     else if (widthCtrl == `memWidth2) begin
         if (address[0] != 0) begin
-            addressException = 1;
+            alignException = 1;
         end
         if (address[1]) begin
-            halfWord = memory[realAddress][31:16];
+            halfWord = readWord[31:16];
+            writeWord = {writeDataIn[15:0], readWord[15:0]};
         end
         else begin
-            halfWord = memory[realAddress][15:0];
+            halfWord = readWord[15:0];
+            writeWord = {readWord[31:16], writeDataIn[15:0]};
         end
         if (extendCtrl) begin
             readData = $signed(halfWord);
@@ -51,16 +61,20 @@ always @(*) begin
     end
     else if (widthCtrl == `memWidth1) begin
         if (address[1:0] == 3) begin
-            byte = memory[realAddress][31:24];
+            byte = readWord[31:24];
+            writeWord = {writeDataIn[7:0], readWord[23:0]};
         end
         else if (address[1:0] == 2) begin
-            byte = memory[realAddress][23:16];
+            byte = readWord[23:16];
+            writeWord = {readWord[31:24], writeDataIn[7:0], readWord[15:0]};
         end
         else if (address[1:0] == 1) begin
-            byte = memory[realAddress][15:8];
+            byte = readWord[15:8];
+            writeWord = {readWord[31:16], writeDataIn[7:0], readWord[7:0]};
         end
         else if (address[1:0] == 0) begin
-            byte = memory[realAddress][7:0];
+            byte = readWord[7:0];
+            writeWord = {readWord[31:8], writeDataIn[7:0]};
         end
         if (extendCtrl) begin
             readData = $signed(byte);
@@ -71,54 +85,34 @@ always @(*) begin
     end
 end
 
-reg [31:0] writeData;
+reg addressException;
+always @(*) begin
+    chipSelect_RAM = 0;
+    addressException = 1;
+    if (address < 16'h3000) begin
+        chipSelect_RAM = 1;
+        addressException = 0;
+    end
+end
 
 always @(*) begin
-    writeData = 0;
-    if (widthCtrl == `memWidth4) begin
-        writeData = writeDataIn;
-    end
-    else if (widthCtrl == `memWidth2) begin
-        if (address[1] == 1) begin
-            writeData = {writeDataIn[15:0], memory[realAddress][15:0]};
-        end
-        else begin
-            writeData = {memory[realAddress][31:16], writeDataIn[15:0]};
-        end
-    end
-    else if (widthCtrl == `memWidth1) begin
-        if (address[1:0] == 3) begin
-            writeData = {writeDataIn[7:0], memory[realAddress][23:0]};
-        end
-        else if (address[1:0] == 2) begin
-            writeData = {memory[realAddress][31:24], writeDataIn[7:0], memory[realAddress][15:0]};
-        end
-        else if (address[1:0] == 1) begin
-            writeData = {memory[realAddress][31:16], writeDataIn[7:0], memory[realAddress][7:0]};
-        end
-        else begin
-            writeData = {memory[realAddress][31:8], writeDataIn[7:0]};
-        end
+    readWord = 'bx;
+    if(chipSelect_RAM) begin
+        readWord = ram.readData;
     end
 end
 
-integer i;
+always @(*) begin
+    exception = 0;
+    if (readEnable || writeEnable) begin
+        exception = alignException || addressException || (chipSelect_RAM && ram.exception);
+    end
+end
+
 always @(posedge clk) begin
-    if (reset) begin
-        for (i = 0; i < 1024; i = i + 1) begin
-            memory[i] <= 0;
-        end
-    end
-    else if (writeEnable) begin
-`ifdef DEBUG
-        $display("@%h: *%h <= %h", debugPC, {18'h0, realAddress, 2'b0}, writeData);
-`else
-        $display("%d@%h: *%h <= %h", $time, debugPC,{18'h0, realAddress, 2'b0}, writeData);
-`endif
-
-        memory[realAddress] <= writeData;
+    if (writeEnable) begin
+        $display("%d@%h: *%h <= %h", $time, debugPC,{address[31:2], 2'b0}, writeWord);
     end
 end
-
 
 endmodule
