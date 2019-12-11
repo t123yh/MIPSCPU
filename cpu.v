@@ -61,7 +61,7 @@ CP0 cp0(
         .clk(clk),
         .reset(reset),
         .externalInterrupt(irq),
-        .hasExceptionInPipeline(exceptionLevel >= `stallExecution)
+        .hasExceptionInPipeline(exceptionLevel >= `stallMemory)
     );
 
 // Forwarding logic:
@@ -112,12 +112,6 @@ reg [31:0] D_pc;
 reg D_last_exception;
 reg D_isDelaySlot;
 reg [4:0] D_last_cause;
-
-always @(*) begin
-    if (F_im.pc != 0) begin
-        effectivePC <= F_im.pc;
-    end
-end
 
 always @(posedge clk) begin
     if (reset) begin
@@ -297,17 +291,7 @@ always @(posedge clk) begin
         E_isDelaySlot <= 0;
     end
     else begin
-        if (cp0.interruptNow) begin
-            E_last_exception <= 1;
-            E_last_cause <= `causeInt;
-            E_bubble <= 0;
-            E_currentInstruction <= D_currentInstruction;
-            E_pc <= D_pc;
-            E_regRead1 <= D_regRead1_forward.value;
-            E_regRead2 <= D_regRead2_forward.value;
-            E_isDelaySlot <= D_isDelaySlot;
-        end
-        else if (!E_stall) begin
+        if (!E_stall) begin
             E_last_exception <= D_exception;
             E_last_cause <= D_cause;
             E_bubble <= D_insert_bubble || exceptionLevel >= `stallExecution;
@@ -419,6 +403,8 @@ Multiplier E_mul(
                .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_regRead2_forward.value)
            );
 
+
+
 wire [31:0] E_mul_value = E_ctrl.mulOutputSel ? E_mul.HI : E_mul.LO;
 
 // ======== Memory Stage ========
@@ -458,7 +444,14 @@ always @(posedge clk) begin
         M_isDelaySlot <= 0;
     end
     else begin
-        if (!M_stall) begin
+        if (cp0.interruptNow) begin
+            M_bubble <= 0;
+            M_last_exception <= 1;
+            M_last_cause <= `causeInt;
+            M_pc <= E_pc;
+            M_isDelaySlot <= E_isDelaySlot;
+        end
+        else if (!M_stall) begin
             M_bubble <= E_insert_bubble || exceptionLevel >= `stallMemory;
             M_last_exception <= E_exception;
             M_last_cause <= E_cause;
@@ -586,7 +579,6 @@ always @(*) begin
     end
 end
 
-
 // ======== WriteBack Stage ========
 
 reg [31:0] W_currentInstruction;
@@ -623,15 +615,15 @@ always @(posedge clk) begin
         W_lastWriteDataValid <= M_regWriteDataValid;
         W_isDelaySlot <= M_isDelaySlot;
         if (M_exception) begin
-            // $display("Exception occurred at %h, caused by %d", M_pc, M_cause);
+            $display("Exception occurred at %h, caused by %d", M_pc, M_cause);
         end
         W_last_exception <= M_exception;
         W_last_cause <= M_cause;
     end
 end
 
-assign cp0.isException = W_last_exception;
-assign W_exception = W_last_exception;
+assign W_exception = !W_bubble && W_last_exception;
+assign cp0.isException = W_exception;
 assign cp0.exceptionPC = W_pc;
 assign cp0.exceptionCause = W_last_cause;
 
@@ -668,6 +660,40 @@ always @(*) begin
             end
         endcase
     end
+end
+
+always @(*) begin
+    effectivePC = 0;
+    if (!W_bubble && W_exception) begin
+        effectivePC = W_pc;
+    end
+    else if (!M_bubble && M_exception) begin
+        effectivePC = M_pc;
+    end
+    else if (!E_bubble) begin
+        effectivePC = E_pc;
+    end
+    else begin
+        effectivePC = D_pc;
+    end
+    /*
+    if (exceptionLevel <= `stallExecution) begin
+        if (!E_bubble) begin
+            effectivePC = E_pc;
+        end
+        else begin
+            effectivePC = D_pc;
+        end
+    end
+    else begin
+        if (!M_bubble) begin
+            effectivePC = M_pc;
+        end
+        else begin
+            effectivePC = W_pc;
+        end
+    end
+    */
 end
 
 endmodule

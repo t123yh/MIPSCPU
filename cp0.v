@@ -75,7 +75,7 @@ initial begin
     end
 end
 
-reg [15:10] interruptSource;
+wire [15:10] interruptSource = externalInterrupt;
 wire interruptEnabled = `IE && !`EXL && !hasExceptionInPipeline;
 wire [15:10] unmaskedInterrupt = interruptEnabled ? (interruptSource & `IM) : 0;
 wire hasInterrupt = | unmaskedInterrupt;
@@ -90,11 +90,11 @@ always @(posedge clk) begin
         `IE <= 0;
         `EXL <= 1;
         `IM <= 6'b111111;
-        interruptSource <= 0;
+        // interruptSource <= 0;
         pendingInterrupt <= 0;
     end
     else begin
-        interruptSource <= externalInterrupt;
+        // interruptSource <= externalInterrupt;
         if (hasInterrupt) begin
             `IP <= interruptSource & `IM;
             pendingInterrupt <= 1;
