@@ -80,7 +80,9 @@ wire interruptEnabled = `IE && !`EXL && !hasExceptionInPipeline;
 wire [15:10] unmaskedInterrupt = interruptEnabled ? (interruptSource & `IM) : 0;
 wire hasInterrupt = | unmaskedInterrupt;
 
+reg pendingInterrupt;
 assign interruptNow = hasInterrupt;
+
 always @(posedge clk) begin
     if (reset) begin
         `EPC <= 0;
@@ -89,11 +91,17 @@ always @(posedge clk) begin
         `EXL <= 1;
         `IM <= 6'b111111;
         interruptSource <= 0;
+        pendingInterrupt <= 0;
     end
     else begin
         interruptSource <= externalInterrupt;
-        if (interruptNow) begin
+        if (hasInterrupt) begin
             `IP <= interruptSource & `IM;
+            pendingInterrupt <= 1;
+        end else if (pendingInterrupt) begin
+            if (`EXL) begin
+                pendingInterrupt <= 0;
+            end
         end
         if (isException) begin
             if (`EXL) begin

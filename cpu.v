@@ -61,7 +61,7 @@ CP0 cp0(
         .clk(clk),
         .reset(reset),
         .externalInterrupt(irq),
-        .hasExceptionInPipeline(exceptionLevel != `stallNone)
+        .hasExceptionInPipeline(exceptionLevel >= `stallExecution)
     );
 
 // Forwarding logic:
@@ -113,6 +113,12 @@ reg D_last_exception;
 reg D_isDelaySlot;
 reg [4:0] D_last_cause;
 
+always @(*) begin
+    if (F_im.pc != 0) begin
+        effectivePC <= F_im.pc;
+    end
+end
+
 always @(posedge clk) begin
     if (reset) begin
         D_last_bubble <= 1;
@@ -123,21 +129,13 @@ always @(posedge clk) begin
     end
     else begin
         D_last_bubble <= exceptionLevel >= `stallDecode;
-        if (cp0.interruptNow) begin
-            D_last_exception <= 1;
-            D_last_cause <= `causeInt;
-            D_pc <= F_im.outputPC;
+        if (!D_stall) begin
             D_isDelaySlot <= F_isDelaySlot;
+            D_last_exception <= F_exception;
+            D_last_cause <= F_cause;
             D_currentInstruction <= F_im.instruction;
+            D_pc <= F_im.outputPC;
         end
-        else
-            if (!D_stall) begin
-                D_isDelaySlot <= F_isDelaySlot;
-                D_last_exception <= F_exception;
-                D_last_cause <= F_cause;
-                D_currentInstruction <= F_im.instruction;
-                D_pc <= F_im.outputPC;
-            end
     end
 end
 
@@ -296,7 +294,17 @@ always @(posedge clk) begin
         E_isDelaySlot <= 0;
     end
     else begin
-        if (!E_stall) begin
+        if (cp0.interruptNow) begin
+            E_last_exception <= 1;
+            E_last_cause <= `causeInt;
+            E_bubble <= 0;
+            E_currentInstruction <= D_currentInstruction;
+            E_pc <= D_pc;
+            E_regRead1 <= D_regRead1_forward.value;
+            E_regRead2 <= D_regRead2_forward.value;
+            E_isDelaySlot <= D_isDelaySlot;
+        end
+        else if (!E_stall) begin
             E_last_exception <= D_exception;
             E_last_cause <= D_cause;
             E_bubble <= D_insert_bubble || exceptionLevel >= `stallExecution;
@@ -606,7 +614,7 @@ always @(posedge clk) begin
         W_lastWriteDataValid <= M_regWriteDataValid;
         W_isDelaySlot <= M_isDelaySlot;
         if (M_exception) begin
-            $display("Exception occurred at %h, caused by %d", M_pc, M_cause);
+            // $display("Exception occurred at %h, caused by %d", M_pc, M_cause);
         end
         W_last_exception <= M_exception;
         W_last_cause <= M_cause;
@@ -625,12 +633,6 @@ Controller W_ctrl(
                .bubble(W_bubble || W_last_exception),
                .debugPC(W_pc)
            );
-
-always @(posedge clk) begin
-    if (!W_bubble && (!cp0.isException || (cp0.isException && cp0.exceptionCause == `causeERET))) begin
-        effectivePC <= W_pc;
-    end
-end
 
 assign cp0.writeEnable = W_ctrl.writeCP0;
 assign cp0.number = W_ctrl.numberCP0;
