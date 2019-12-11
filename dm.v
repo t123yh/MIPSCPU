@@ -132,7 +132,7 @@ always @(*) begin
     if(chipSelect_RAM) begin
         readWord = ram.readData;
     end
-    else begin
+    else if (chipSelect_SB) begin
         readWord = sb_DataOut;
     end
 end
