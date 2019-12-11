@@ -92,6 +92,9 @@ always @(posedge clk) begin
     end
     else begin
         interruptSource <= externalInterrupt;
+        if (interruptNow) begin
+            `IP <= interruptSource & `IM;
+        end
         if (isException) begin
             if (`EXL) begin
                 if (exceptionCause == `causeERET) begin
