@@ -44,11 +44,21 @@ end
 always @(*) begin
     CS_TC0 = 0;
     CS_TC1 = 0;
-    if (address[15:0] >= 'h7F00 && address[15:0] <= 'h7F0B) begin
-        CS_TC0 = 1;
+    if (writeEnable) begin
+        if (address[15:0] >= 'h7F00 && address[15:0] <= 'h7F07) begin
+            CS_TC0 = 1;
+        end
+        else if (address[15:0] >= 'h7F10 && address[15:0] <= 'h7F17) begin
+            CS_TC1 = 1;
+        end
     end
-    else if (address[15:0] >= 'h7F10 && address[15:0] <= 'h7F1B) begin
-        CS_TC1 = 1;
+    else if (readEnable) begin
+        if (address[15:0] >= 'h7F00 && address[15:0] <= 'h7F0B) begin
+            CS_TC0 = 1;
+        end
+        else if (address[15:0] >= 'h7F10 && address[15:0] <= 'h7F1B) begin
+            CS_TC1 = 1;
+        end
     end
 end
 
