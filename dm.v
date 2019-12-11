@@ -145,7 +145,7 @@ always @(*) begin
 end
 
 always @(posedge clk) begin
-    if (writeEnable) begin
+    if (writeEnable && !exception) begin
         $display("%d@%h: *%h <= %h", $time, debugPC,{address[31:2], 2'b0}, writeWord);
     end
 end
