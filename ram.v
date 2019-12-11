@@ -18,6 +18,9 @@ always @(*) begin
     end
 end
 
+// assign exception = address == 16'h0008; // For testing purpose
+assign exception = 0;
+
 integer i;
 always @(posedge clk) begin
     if (reset) begin
