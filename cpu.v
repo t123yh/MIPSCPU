@@ -648,7 +648,7 @@ end
 
 assign W_exception = !W_bubble && W_last_exception;
 assign cp0.isException = W_exception;
-assign cp0.exceptionPC = W_pc;
+assign cp0.exceptionPC = {W_pc[31:2], 2'b0};
 assign cp0.exceptionCause = W_last_cause;
 
 Controller W_ctrl(
