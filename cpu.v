@@ -386,8 +386,18 @@ always @(*) begin
         E_exception = 1;
     end
     else if (E_ctrl.checkOverflow && E_alu.overflow) begin
-        E_cause = `causeOv;
-        E_exception = 1;
+        if (E_ctrl.memLoad) begin
+            E_cause = `causeAdEL;
+            E_exception = 1;
+        end
+        else if (E_ctrl.memStore) begin
+            E_cause = `causeAdES;
+            E_exception = 1;
+        end
+        else begin
+            E_cause = `causeOv;
+            E_exception = 1;
+        end
     end
 end
 
