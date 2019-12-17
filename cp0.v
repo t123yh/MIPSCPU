@@ -26,11 +26,7 @@ wire [31:0] exceptionHandler = 32'h00004180;
 
 reg [31:0] registers [15:0];
 
-always @(posedge clk) begin
-    if (writeEnable) begin
-        registers[number] <= writeData;
-    end
-end
+`define CauseNumber 13
 
 assign readData = registers[number];
 
@@ -96,9 +92,9 @@ always @(posedge clk) begin
     else begin
         // interruptSource <= externalInterrupt;
         if (hasInterrupt) begin
-            `IP <= interruptSource & `IM;
             pendingInterrupt <= 1;
-        end else if (pendingInterrupt) begin
+        end
+        else if (pendingInterrupt) begin
             if (`EXL) begin
                 pendingInterrupt <= 0;
             end
@@ -122,6 +118,18 @@ always @(posedge clk) begin
                     `EXL <= 1;
                 end
             end
+        end
+        else begin
+            if (writeEnable) begin
+                if (number == `CauseNumber) begin // Cause
+                    `Cause[31:16] <= writeData[31:16];
+                    `Cause[9:0] <= writeData[9:0];
+                end
+                else begin
+                    registers[number] <= writeData;
+                end
+            end
+            `Cause[15:10] <= externalInterrupt[15:10];
         end
     end
 end
