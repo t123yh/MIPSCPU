@@ -8,7 +8,8 @@ module InstructionMemory(
            input [31:0] absJumpAddress, // In bytes
            output [31:0] outputPC,
            output [31:0] instruction,
-           output reg exception
+           output reg exception,
+           output bubble
        );
 
 
@@ -24,6 +25,7 @@ wire [31:0] realAddress = pc - 32'h3000;
 reg [31:0] pc;
 reg hangState;
 assign outputPC = hangState ? 0 : pc;
+assign bubble = hangState;
 assign instruction = isHanging ? 0 : memory[realAddress[13:2]];
 assign isHanging = hang || hangState;
 

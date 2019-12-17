@@ -101,6 +101,7 @@ InstructionMemory F_im (
                   );
 
 assign F_exception = F_im.exception;
+wire F_insert_bubble = F_im.bubble;
 wire [4:0] F_cause = F_im.exception ? `causeAdEL : 'bx;
 
 // ======== Decode Stage ========
@@ -129,7 +130,7 @@ always @(posedge clk) begin
             D_isDelaySlot <= 0;
         end
         else begin
-            D_last_bubble <= exceptionLevel >= `stallDecode;
+            D_last_bubble <= F_insert_bubble || exceptionLevel >= `stallDecode;
             if (!D_stall) begin
                 D_isDelaySlot <= F_isDelaySlot;
                 D_last_exception <= F_exception;
@@ -255,6 +256,14 @@ always @(*) begin
     end
 end
 
+reg [31:0] D_real_pc;
+always @(*) begin
+    if (D_last_bubble) begin
+        D_real_pc <= F_im.pc;
+    end else begin
+        D_real_pc <= D_pc;
+    end
+end
 
 // ======== Execution Stage ========
 
@@ -310,7 +319,7 @@ always @(posedge clk) begin
             E_last_cause <= D_cause;
             E_bubble <= D_insert_bubble || exceptionLevel >= `stallExecution;
             E_currentInstruction <= D_currentInstruction;
-            E_pc <= D_pc;
+            E_pc <= D_real_pc;
             E_regRead1 <= D_regRead1_forward.value;
             E_regRead2 <= D_regRead2_forward.value;
             E_isDelaySlot <= D_isDelaySlot;
@@ -427,9 +436,17 @@ Multiplier E_mul(
                .B(E_ctrl.aluSrc ? E_ctrl.immediate : E_regRead2_forward.value)
            );
 
-
-
 wire [31:0] E_mul_value = E_ctrl.mulOutputSel ? E_mul.HI : E_mul.LO;
+
+reg [31:0] E_real_pc;
+
+always @(*) begin
+    if (E_bubble) begin
+        E_real_pc <= D_real_pc;
+    end else begin
+        E_real_pc <= E_pc;
+    end
+end
 
 // ======== Memory Stage ========
 
@@ -472,7 +489,7 @@ always @(posedge clk) begin
             M_bubble <= 0;
             M_last_exception <= 1;
             M_last_cause <= `causeInt;
-            M_pc <= E_pc;
+            M_pc <= E_real_pc;
             M_isDelaySlot <= E_isDelaySlot;
         end
         else if (!M_stall) begin
@@ -480,7 +497,7 @@ always @(posedge clk) begin
             M_last_exception <= E_exception;
             M_last_cause <= E_cause;
             M_currentInstruction <= E_currentInstruction;
-            M_pc <= E_pc;
+            M_pc <= E_real_pc;
             M_aluOutput <= E_alu.out;
             M_mulOutput <= E_mul_value;
             M_regRead1 <= E_regRead1_forward.value;
@@ -697,8 +714,10 @@ always @(*) begin
     else if (!E_bubble) begin
         effectivePC = E_pc;
     end
-    else begin
+    else if (!D_last_bubble) begin
         effectivePC = D_pc;
+    end else begin
+        effectivePC = F_im.pc;
     end
     /*
     if (exceptionLevel <= `stallExecution) begin
