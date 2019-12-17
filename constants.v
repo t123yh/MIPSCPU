@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 `define aluDisabled 0
 `define aluSub 1
 `define aluOr 2
