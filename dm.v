@@ -35,7 +35,8 @@ RAM ram(
         .address(address[13:0]),
         .readEnable(chipSelect_RAM),
         .writeEnable(chipSelect_RAM && writeEnable),
-        .writeDataIn(writeWord)
+        .writeDataIn(writeWord),
+        .debugPC(debugPC)
     );
 
 reg [15:0] halfWord;
@@ -141,12 +142,6 @@ always @(*) begin
     exception = 0;
     if (readEnable || writeEnable) begin
         exception = addressException || (chipSelect_RAM && ram.exception) || (chipSelect_SB && sb_exception);
-    end
-end
-
-always @(posedge clk) begin
-    if (writeEnable && !exception) begin
-        $display("%d@%h: *%h <= %h", $time, debugPC,{address[31:2], 2'b0}, writeWord);
     end
 end
 
