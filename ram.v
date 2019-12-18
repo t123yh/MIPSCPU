@@ -6,9 +6,10 @@ module RAM(
            input readEnable,
            input [13:0] address,
            input [31:0] writeDataIn,
+           input [31:0] debugPC,
            output reg [31:0] readData,
            output exception
-);
+       );
 reg [31:0] memory [4095:0];
 wire [11:0] realAddress = address[13:2];
 always @(*) begin
@@ -30,6 +31,12 @@ always @(posedge clk) begin
     end
     else if (writeEnable) begin
         memory[realAddress] <= writeDataIn;
+    end
+end
+
+always @(posedge clk) begin
+    if (writeEnable && !exception) begin
+        $display("%d@%h: *%h <= %h", $time, debugPC,{18'b0, realAddress, 2'b0}, writeDataIn);
     end
 end
 
