@@ -113,6 +113,7 @@ InstructionMemory F_im (
 assign F_exception = F_im.exception;
 wire F_insert_bubble = F_im.bubble;
 wire [4:0] F_cause = F_im.exception ? `causeAdEL : 'bx;
+wire [31:0] F_badVAddr = F_im.exception ? F_im.outputPC : 'bx;
 
 // ======== Decode Stage ========
 wire D_stall = stallLevel >= `stallDecode;
@@ -123,6 +124,7 @@ reg [31:0] D_pc;
 reg D_last_exception;
 reg D_isDelaySlot;
 reg [4:0] D_last_cause;
+reg [31:0] D_badVAddr;
 
 always @(posedge clk) begin
     if (reset) begin
@@ -130,6 +132,7 @@ always @(posedge clk) begin
         D_last_exception <= 0;
         D_pc <= 0;
         D_isDelaySlot <= 0;
+        D_badVAddr <= 0;
         D_currentInstruction <= 0;
     end
     else begin
@@ -142,6 +145,7 @@ always @(posedge clk) begin
         else begin
             D_last_bubble <= F_insert_bubble || exceptionLevel >= `stallDecode;
             if (!D_stall) begin
+                D_badVAddr <= F_badVAddr;
                 D_isDelaySlot <= F_isDelaySlot;
                 D_last_exception <= F_exception;
                 D_last_cause <= F_cause;
@@ -303,6 +307,7 @@ reg [31:0] E_regWriteData;
 
 reg E_last_exception;
 reg [4:0] E_last_cause;
+reg [31:0] E_badVAddr;
 
 reg E_isDelaySlot;
 
@@ -328,6 +333,7 @@ always @(posedge clk) begin
         E_pc <= 0;
         E_regRead1 <= 0;
         E_regRead2 <= 0;
+        E_badVAddr <= 0;
         E_isDelaySlot <= 0;
     end
     else begin
@@ -346,6 +352,7 @@ always @(posedge clk) begin
             E_regRead1 <= D_regRead1_forward.value;
             E_regRead2 <= D_regRead2_forward.value;
             E_isDelaySlot <= D_isDelaySlot;
+            E_badVAddr <= D_badVAddr;
         end
         else begin
             E_bubble <= E_bubble || exceptionLevel >= `stallExecution;
@@ -482,7 +489,7 @@ reg [31:0] M_aluOutput;
 reg [31:0] M_mulOutput;
 reg [31:0] M_regRead1;
 reg [31:0] M_regRead2;
-
+reg [31:0] M_lastBadVAddr;
 reg M_lastWriteDataValid;
 reg [31:0] M_lastWriteData;
 
@@ -501,6 +508,7 @@ always @(posedge clk) begin
         M_currentInstruction <= 0;
         M_pc <= 0;
         M_aluOutput <= 0;
+        M_lastBadVAddr <= 0;
         M_mulOutput <= 0;
         M_regRead1 <= 0;
         M_regRead2 <= 0;
@@ -523,6 +531,7 @@ always @(posedge clk) begin
             M_currentInstruction <= E_currentInstruction;
             M_pc <= E_real_pc;
             M_aluOutput <= E_alu.out;
+            M_lastBadVAddr <= E_badVAddr;
             M_mulOutput <= E_mul_value;
             M_regRead1 <= E_regRead1_forward.value;
             M_regRead2 <= E_regRead2_forward.value;
@@ -621,6 +630,7 @@ reg [4:0] M_cause;
 always @(*) begin
     M_exception = 0;
     M_cause = 'bx;
+    M_badVAddr = M_lastBadVAddr;
     if (M_bubble) begin
         M_exception = 0;
     end
