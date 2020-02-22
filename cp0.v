@@ -38,10 +38,10 @@ assign readData = registers[number];
 `define SR registers[12]
 `define EXL `SR[1]
 `define IE `SR[0]
-`define IM `SR[15:10]
+`define IM `SR[15:8]
 `define Cause registers[13]
 `define BD `Cause[31]
-`define IP `Cause[15:10]
+`define IP `Cause[15:8]
 `define ExcCode `Cause[6:2]
 `define BadVAddr registers[8]
 `define Count registers[`CountNumber]
@@ -73,7 +73,7 @@ initial begin
 end
 
 reg timerInterrupt, clearTimerInterrupt;
-wire [15:8] interruptSource = {timerInterrupt, externalInterrupt[14:10]};
+wire [15:8] interruptSource = {timerInterrupt, externalInterrupt[14:10], `Cause[9:8]};
 wire interruptEnabled = `IE && !`EXL && !hasExceptionInPipeline;
 wire [15:8] unmaskedInterrupt = interruptEnabled ? (interruptSource & `IM) : 0;
 wire hasInterrupt = | unmaskedInterrupt;
