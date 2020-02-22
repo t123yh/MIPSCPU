@@ -1,47 +1,48 @@
-module mips(
+module mycpu_top(
     input clk,
-    input reset,
-    input interrupt,
-    output [31:0] addr
+    input resetn,
+    input [5:0] int,
+
+    output inst_sram_en,
+    output [3:0] inst_sram_wen,
+    output [31:0] inst_sram_addr,
+    output [31:0] inst_sram_wdata,
+    input [31:0] inst_sram_rdata,
+
+    output data_sram_en,
+    output [3:0] data_sram_wen,
+    output [31:0] data_sram_addr,
+    output [31:0] data_sram_wdata,
+    input [31:0] data_sram_rdata,
+
+    output [31:0] debug_wb_pc,
+    output [3:0] debug_wb_rf_wen,
+    output [4:0] debug_wb_rf_wnum,
+    output [31:0] debug_wb_rf_wdata
 );
 
-TC tc0(
-    .clk(clk),
-    .reset(reset),
-    .Addr(cpu.sb_Address[31:2])
-);
-
-TC tc1(
-    .clk(clk),
-    .reset(reset),
-    .Addr(cpu.sb_Address[31:2])
-);
-
-SystemBridge sb(
-    .clk(clk),
-    .reset(reset),
-
-    .writeEnable(cpu.sb_WriteEnable),
-    .readEnable(cpu.sb_ReadEnable),
-    .address(cpu.sb_Address),
-    .writeDataIn(cpu.sb_DataIn),
-    .readData(cpu.sb_DataOut),
-    .exception(cpu.sb_exception),
-    
-    .WE0(tc0.WE),
-    .TC0BIPO(tc0.Dout),
-    .TC0BOPI(tc0.Din),
-
-    .WE1(tc1.WE),
-    .TC1BIPO(tc1.Dout),
-    .TC1BOPI(tc1.Din)
-);
+assign inst_sram_en = 1;
+assign inst_sram_wen = 0;
+assign inst_sram_wdata = 32'b0;
 
 CPU cpu(
         .clk(clk),
-        .reset(reset),
-        .irq({3'b0, interrupt, tc1.IRQ, tc0.IRQ}),
-        .effectivePC(addr)
+        .reset(~resetn),
+        .irq(int),
+        
+        .inst_sram_addr(inst_sram_addr),
+        .inst_sram_rdata(inst_sram_rdata),
+
+        .data_sram_en(data_sram_en),
+        .data_sram_wen(data_sram_wen),
+        .data_sram_addr(data_sram_addr),
+        .data_sram_wdata(data_sram_wdata),
+        .data_sram_rdata(data_sram_rdata),
+
+        .debug_wb_pc(debug_wb_pc),
+        .debug_wb_rf_wen(debug_wb_rf_wen),
+        .debug_wb_rf_wnum(debug_wb_rf_wnum),
+        .debug_wb_rf_wdata(debug_wb_rf_wdata)
     );
 
 endmodule
