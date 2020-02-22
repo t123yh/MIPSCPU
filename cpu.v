@@ -3,15 +3,23 @@ module CPU (
            input clk,
            input reset,
            input [5:0] irq,
-           output reg [31:0] effectivePC,
 
-           output sb_WriteEnable,
-           output sb_ReadEnable,
-           output [31:0] sb_Address,
-           output [31:0] sb_DataIn,
-           input [31:0] sb_DataOut,
-           input sb_exception
+    output [31:0] inst_sram_addr,
+    input [31:0] inst_sram_rdata,
+
+    output data_sram_en,
+    output [3:0] data_sram_wen,
+    output [31:0] data_sram_addr,
+    output [31:0] data_sram_wdata,
+    input [31:0] data_sram_rdata,
+
+    output [31:0] debug_wb_pc,
+    output [3:0] debug_wb_rf_wen,
+    output [4:0] debug_wb_rf_wnum,
+    output [31:0] debug_wb_rf_wdata
        );
+       
+reg [31:0] effectivePC;
 
 reg [31:0] W_pc;
 wire D_data_waiting;
@@ -94,6 +102,8 @@ reg F_isDelaySlot;
 InstructionMemory F_im (
                       .clk(clk),
                       .reset(reset),
+                      .inst_sram_rdata(inst_sram_rdata),
+                      .inst_sram_addr(inst_sram_addr),
                       .absJump(F_jump),
                       .absJumpAddress(F_jumpAddr),
                       .pcStall(F_stall),
@@ -187,6 +197,11 @@ GeneralRegisterFile D_grf(
                         .readAddress2(D_ctrl.regRead2),
                         .debugPC(W_pc)
                     );
+
+assign debug_wb_pc = W_pc;
+assign debug_wb_rf_wen = grfWriteAddress != 0 ? 4'b1111 : 0;
+assign debug_wb_rf_wnum = grfWriteAddress;
+assign debug_wb_rf_wdata = grfWriteData;
 
 ForwardController D_regRead1_forward (
                       .request(D_ctrl.regRead1),
@@ -581,21 +596,16 @@ assign M_data_waiting = M_regRead1_forward.stallExec || M_regRead2_forward.stall
 DataMemory M_dm(
                .clk(clk),
                .reset(reset),
-               .debugPC(M_pc),
-
-               .sb_Address(sb_Address),
-               .sb_DataIn(sb_DataIn),
-               .sb_DataOut(sb_DataOut),
-               .sb_ReadEnable(sb_ReadEnable),
-               .sb_WriteEnable(sb_WriteEnable),
-               .sb_exception(sb_exception),
-
-               .readEnable(!M_data_waiting && M_ctrl.memLoad),
                .writeEnable(!M_data_waiting && M_ctrl.memStore),
-               .widthCtrl(M_ctrl.memWidthCtrl),
-               .extendCtrl(M_ctrl.memReadSignExtend),
+               .readEnable(!M_data_waiting && M_ctrl.memLoad),
                .address(M_aluOutput),
-               .writeDataIn(M_regRead2_forward.value) // register@regRead2
+               .writeDataIn(M_regRead2_forward.value), // register@regRead2
+        .widthCtrl(M_ctrl.memWidthCtrl),
+
+                       .data_sram_en(data_sram_en),
+        .data_sram_wen(data_sram_wen),
+        .data_sram_addr(data_sram_addr),
+        .data_sram_wdata(data_sram_wdata)
            );
 
 reg [4:0] M_cause;
@@ -623,10 +633,8 @@ end
 // ======== WriteBack Stage ========
 
 reg [31:0] W_currentInstruction;
-reg [31:0] W_memData;
 reg [31:0] W_aluOutput;
 reg [31:0] W_regRead1;
-
 reg W_lastWriteDataValid;
 reg [31:0] W_lastWriteData;
 reg W_last_exception;
@@ -640,7 +648,6 @@ always @(posedge clk) begin
         W_currentInstruction <= 0;
         W_pc <= 0;
         W_aluOutput <= 0;
-        W_memData <= 0;
         W_lastWriteData <= 0;
         W_lastWriteDataValid <= 0;
         W_last_exception <= 0;
@@ -651,7 +658,6 @@ always @(posedge clk) begin
         W_currentInstruction <= M_currentInstruction;
         W_pc <= M_pc;
         W_aluOutput <= M_aluOutput;
-        W_memData <= M_dm.readData;
         W_lastWriteData <= M_regWriteData;
         W_lastWriteDataValid <= M_regWriteDataValid;
         W_isDelaySlot <= M_isDelaySlot;
@@ -662,6 +668,14 @@ always @(posedge clk) begin
         W_last_cause <= M_cause;
     end
 end
+
+DataMemoryReader W_reader(
+        .data_sram_rdata(data_sram_rdata),
+        .readEnable(W_ctrl.memLoad),
+        .address(W_aluOutput),
+        .widthCtrl(W_ctrl.memWidthCtrl),
+        .extendCtrl(W_ctrl.memReadSignExtend)
+);
 
 assign W_exception = !W_bubble && W_last_exception;
 assign cp0.isException = W_exception;
@@ -694,7 +708,7 @@ always @(*) begin
         grfWriteData = 'bx;
         case (W_ctrl.grfWriteSource)
             `grfWriteMem: begin
-                grfWriteData = W_memData;
+                grfWriteData = W_reader.readData;
             end
             `grfWriteCP0: begin
                 grfWriteData = cp0.readData;
