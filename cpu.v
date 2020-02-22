@@ -181,6 +181,14 @@ always @(*) begin
                 D_cause = `causeERET;
                 D_exception = 1;
             end
+            `ctrlSyscall: begin
+                D_cause = `causeSyscall;
+                D_exception = 1;
+            end
+            `ctrlBreak: begin
+                D_cause = `causeBreak;
+                D_exception = 1;
+            end
         endcase
     end
 end

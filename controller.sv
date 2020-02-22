@@ -122,6 +122,7 @@ localparam sltiu = 6'b001011;
 
 localparam jr = 6'b001000;
 localparam syscall = 6'b001100;
+localparam _break = 6'b001101;
 
 localparam debug = 1;
 
@@ -401,7 +402,11 @@ always_comb begin
                 end
 
                 syscall: begin
-                    bye = 1;
+                    generateException = `ctrlSyscall;
+                end
+
+                _break: begin
+                    generateException = `ctrlBreak;
                 end
 
                 mult: begin
