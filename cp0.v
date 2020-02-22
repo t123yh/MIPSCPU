@@ -22,7 +22,7 @@ module CP0(
            input [15:10] externalInterrupt
        );
 
-wire [31:0] exceptionHandler = 32'h00004180;
+wire [31:0] exceptionHandler = 32'hBFC00380;
 
 reg [31:0] registers [15:0];
 
