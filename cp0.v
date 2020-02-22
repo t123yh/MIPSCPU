@@ -28,6 +28,8 @@ wire [31:0] exceptionHandler = 32'hBFC00380;
 reg [31:0] registers [15:0];
 
 `define CauseNumber 13
+`define CompareNumber 11
+`define CountNumber 9
 
 assign readData = registers[number];
 
@@ -42,6 +44,8 @@ assign readData = registers[number];
 `define IP `Cause[15:10]
 `define ExcCode `Cause[6:2]
 `define BadVAddr registers[8]
+`define Count registers[`CountNumber]
+`define Compare registers[`CompareNumber]
 
 assign BDReg = `BD;
 wire EXLReg = `EXL;
@@ -68,13 +72,31 @@ initial begin
     end
 end
 
-wire [15:10] interruptSource = externalInterrupt;
+reg timerInterrupt, clearTimerInterrupt;
+wire [15:8] interruptSource = {timerInterrupt, externalInterrupt[14:10]};
 wire interruptEnabled = `IE && !`EXL && !hasExceptionInPipeline;
-wire [15:10] unmaskedInterrupt = interruptEnabled ? (interruptSource & `IM) : 0;
+wire [15:8] unmaskedInterrupt = interruptEnabled ? (interruptSource & `IM) : 0;
 wire hasInterrupt = | unmaskedInterrupt;
 
 reg pendingInterrupt;
 assign interruptNow = hasInterrupt;
+
+
+always @(posedge clk) begin
+    if (reset) begin
+        timerInterrupt <= 0;
+    end
+    else begin
+        if (clearTimerInterrupt) begin
+            timerInterrupt <= 0;
+        end
+        else begin
+            if (`Count == `Compare && `Compare != 32'b0) begin
+                timerInterrupt <= 1;
+            end
+        end
+    end
+end
 
 always @(posedge clk) begin
     if (reset) begin
@@ -85,8 +107,13 @@ always @(posedge clk) begin
         `IM <= 6'b111111;
         // interruptSource <= 0;
         pendingInterrupt <= 0;
+        clearTimerInterrupt <= 0;
     end
     else begin
+        if (isException || !writeEnable || number != `CountNumber) begin
+            `Count <= `Count + 1;
+        end
+
         // interruptSource <= externalInterrupt;
         if (hasInterrupt) begin
             pendingInterrupt <= 1;
@@ -127,7 +154,14 @@ always @(posedge clk) begin
                     registers[number] <= writeData;
                 end
             end
+
             `Cause[15:10] <= externalInterrupt[15:10];
+
+            if (writeEnable && number == `CompareNumber) begin
+                clearTimerInterrupt <= 1;
+            end else if (clearTimerInterrupt) begin
+                clearTimerInterrupt <= 0;
+            end
         end
     end
 end
