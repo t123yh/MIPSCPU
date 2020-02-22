@@ -52,6 +52,8 @@ wire [31:0] signExtendedImmediate = $signed(imm);
 
 assign mulEnable = mulCtrl != `mtDisabled;
 
+localparam reg_ra = 31;
+
 localparam R = 6'b000000;
 localparam REGIMM = 6'b000001;
 localparam ori = 6'b001101;
@@ -108,6 +110,7 @@ localparam eret = 6'b011000;
 localparam bltz = 5'b00000;
 localparam bgez = 5'b00001;
 localparam bltzal = 5'b10000;
+localparam bgezal = 5'b10001;
 
 localparam mfc0 = 5'b00000;
 localparam mtc0 = 5'b00100;
@@ -203,6 +206,9 @@ end
     regRead1 = rsi; \
     regRead2 = rti;
 
+`define simpleLink \
+    grfWriteSource = `grfWritePC; \
+    destinationRegister = reg_ra;
 
 always_comb begin
     memLoad = 0;
@@ -281,6 +287,16 @@ always_comb begin
 
         REGIMM: begin
             case (rti)
+                bltzal: begin
+                    `simpleBranch
+                    `simpleLink
+                    cmpCtrl = `cmpLessThanZero;
+                end
+                bgezal: begin
+                    `simpleBranch
+                    `simpleLink
+                    cmpCtrl = `cmpGreaterThanOrEqualToZero;
+                end
                 bltz: begin
                     `simpleBranch
                     cmpCtrl = `cmpLessThanZero;
@@ -559,8 +575,7 @@ always_comb begin
             absJump = 1;
             absJumpLoc = `absJumpImmediate;
             immediate = bigImm;
-            grfWriteSource = `grfWritePC;
-            destinationRegister = 31;
+            `simpleLink
         end
 
         j: begin
