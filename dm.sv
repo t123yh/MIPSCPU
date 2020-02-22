@@ -16,9 +16,24 @@ module DataMemory(
     output [31:0] data_sram_wdata
        );
 
-assign exception = 0;
 assign data_sram_addr = address & 32'h1FFFFFFF;
 assign data_sram_en = readEnable || writeEnable;
+
+logic addressException;
+assign exception = addressException;
+always_comb begin
+    addressException = 0;
+    if (widthCtrl == `memWidth4) begin
+        if (address[1:0] != 0) begin
+            addressException = 1;
+        end
+    end
+    else if (widthCtrl == `memWidth2) begin
+        if (address[0] != 0) begin
+            addressException = 1;
+        end
+    end
+end
 
 logic [31:0] writeData;
 assign data_sram_wdata = writeData;
@@ -26,7 +41,7 @@ assign data_sram_wdata = writeData;
 always_comb begin
     writeData = 0;
     data_sram_wen = 4'b0000;
-    if (writeEnable) begin
+    if (!addressException && writeEnable) begin
         if (widthCtrl == `memWidth4) begin
             writeData = writeDataIn;
             data_sram_wen = 4'b1111;

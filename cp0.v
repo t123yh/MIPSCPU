@@ -14,6 +14,7 @@ module CP0(
            input isException,
            input [4:0] exceptionCause,
            input [31:0] exceptionPC,
+           input [31:0] exceptionBadVAddr,
 
            output reg jump,
            output reg [31:0] jumpAddress,
@@ -40,6 +41,7 @@ assign readData = registers[number];
 `define BD `Cause[31]
 `define IP `Cause[15:10]
 `define ExcCode `Cause[6:2]
+`define BadVAddr registers[8]
 
 assign BDReg = `BD;
 wire EXLReg = `EXL;
@@ -107,6 +109,7 @@ always @(posedge clk) begin
             end
             else begin
                 if (exceptionCause != `causeERET) begin
+                    `BadVAddr <= exceptionBadVAddr;
                     `BD <= isBD;
                     `ExcCode <= exceptionCause;
                     if (isBD) begin
