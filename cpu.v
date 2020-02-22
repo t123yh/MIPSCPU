@@ -490,6 +490,7 @@ reg M_regWriteDataValid;
 reg [31:0] M_regWriteData;
 reg M_last_exception;
 reg [4:0] M_last_cause;
+reg [31:0] M_badVAddr;
 
 reg M_isDelaySlot;
 
@@ -631,9 +632,11 @@ always @(*) begin
         M_exception = 1;
         if (M_ctrl.memLoad) begin
             M_cause = `causeAdEL;
+            M_badVAddr = M_aluOutput;
         end
         else if (M_ctrl.memStore) begin
             M_cause = `causeAdES;
+            M_badVAddr = M_aluOutput;
         end
     end
 end
@@ -647,6 +650,7 @@ reg W_lastWriteDataValid;
 reg [31:0] W_lastWriteData;
 reg W_last_exception;
 reg [4:0] W_last_cause;
+reg [31:0] W_badVAddr;
 
 reg W_bubble;
 reg W_isDelaySlot;
@@ -659,6 +663,7 @@ always @(posedge clk) begin
         W_lastWriteData <= 0;
         W_lastWriteDataValid <= 0;
         W_last_exception <= 0;
+        W_badVAddr <= 0;
     end
     else begin
         W_regRead1 <= M_regRead1_forward.value;
@@ -669,6 +674,7 @@ always @(posedge clk) begin
         W_lastWriteData <= M_regWriteData;
         W_lastWriteDataValid <= M_regWriteDataValid;
         W_isDelaySlot <= M_isDelaySlot;
+        W_badVAddr <= M_badVAddr;
         if (M_exception) begin
             $display("Exception occurred at %h, caused by %d", M_pc, M_cause);
         end
@@ -702,6 +708,7 @@ assign cp0.writeEnable = W_ctrl.writeCP0;
 assign cp0.number = W_ctrl.numberCP0;
 assign cp0.writeData = W_regRead1;
 assign cp0.isBD = W_isDelaySlot;
+assign cp0.exceptionBadVAddr = W_badVAddr;
 
 assign forwardValidW = 1;
 assign forwardAddressW = W_ctrl.destinationRegister;
