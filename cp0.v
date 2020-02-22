@@ -52,17 +52,12 @@ always @(*) begin
     jump = 0;
     jumpAddress = 'bx;
     if (isException) begin
-        if (`EXL) begin
-            if (exceptionCause == `causeERET) begin
-                jump = 1;
-                jumpAddress = `EPC;
-            end
+        jump = 1;
+        if (exceptionCause == `causeERET) begin
+            jumpAddress = `EPC;
         end
-        else begin
-            if (exceptionCause != `causeERET) begin
-                jump = 1;
-                jumpAddress = exceptionHandler;
-            end
+        else if (exceptionCause != `causeERET) begin
+            jumpAddress = exceptionHandler;
         end
     end
 end
